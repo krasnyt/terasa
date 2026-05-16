@@ -522,13 +522,19 @@ function renderFullLastBoardExtension(config, layout, originX, originY) {
     "marker-end": "url(#dimensionArrow)",
   }));
 
+  const labelX = rightX + 42;
+  const labelY = deckBottomY + info.extension / 2 - 20;
   const label = svgEl("text", {
     class: "dimension-label dimension-detail-label full-board-extension-label",
-    x: rightX + 42,
-    y: deckBottomY + info.extension / 2 + 16,
+    x: labelX,
+    y: labelY,
     "text-anchor": "start",
   });
-  label.textContent = `bez podélného řezu +${Math.round(info.extension)} mm`;
+  const line1 = svgEl("tspan", { x: labelX, dy: "0" });
+  line1.textContent = "bez podélného řezu";
+  const line2 = svgEl("tspan", { x: labelX, dy: "68" });
+  line2.textContent = `+${Math.round(info.extension)} mm`;
+  label.append(line1, line2);
   els.svg.appendChild(label);
 }
 
