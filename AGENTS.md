@@ -83,6 +83,8 @@ Aplikace nabízí tři režimy přepínatelné segmentovaným tlačítkem „Aut
 
 - Hlavní výkres je vykreslený jako SVG.
 - Terasa je zobrazena v měřítku podle zadaných rozměrů.
+- **Velikost plátna se přizpůsobuje terase:** drawing-frame nemá pevnou minimální výšku, SVG si přes `style.aspectRatio = viewWidth / viewHeight` určí výšku podle poměru viewBoxu, takže nad ani pod terasou nevzniká zbytečný prázdný prostor a sekce řezného plánu + poznámky jsou hned pod kresbou.
+- Vertikální padding uvnitř SVG (prostor pro horní/dolní kóty) se počítá samostatně pro horní okraj (`max(180, pad*0.4)`) a dolní okraj (`max(240, pad*0.45, boardWidth+90)`), aby byl prostor pro kóty co nejtěsnější, ale stále dostatečný pro štítky a pro pás celého posledního prkna.
 - Prkna jsou zobrazena jako samostatné díly v jednotlivých řadách.
 - Mezery mezi řadami jsou vizuálně odlišené.
 - Napojení prken ve stejné řadě je zvýrazněné dvojitou značkou, aby byly řezy dobře vidět.
@@ -109,9 +111,11 @@ Panel „Výstup" je rozdělen vodorovnou čárou na dvě sekce. Nad čárou je 
 **Pod čárou:**
 - Počet podkladních hranolovníků a jejich celková délka v metrech (počet × šířka terasy).
 - Počet distančních podložek. Spočítá se po řadách jako `počet prken v řadě + 1` (každá spára mezi dvěma prkny + jedna podložka na každém kraji řady). Prázdné řady se nezapočítávají.
+- Počet vrutů. Pro každé prkno se sečte počet podkladních hranolů, které pod ním procházejí (včetně hranolů na obou koncích prkna na spáře), a vynásobí se dvěma (dva vruty na každý záchyt). Výsledek se navýší o 10 % rezervu a zaokrouhlí nahoru na celé desítky. Ve výpisu je vidět základní počet i procento rezervy.
 - Řezný plán pro jednotlivá skladová prkna.
 - V řezném plánu má každé skladové prkno stejnou vizuální délku.
 - Řezný plán ukazuje jednotlivé řezy a odpad pro každé skladové prkno.
+- Řezný plán se nestrouhá do vlastního scroll okénka — vykreslí všechna prkna pod sebou. Pokud jich je hodně, scrolluje se celá stránka.
 - Poznámky a varování upozorňují na konflikty nebo doporučení v návrhu.
 - Poznámky uvádějí aktuální šířku poslední řady a doporučenou šířku terasy bez podélného řezu posledního prkna.
 

@@ -590,15 +590,18 @@ function render() {
 function renderSvg(config, layout, joistPositions) {
   clearSvg();
   const pad = Math.max(220, config.terraceLength * 0.08);
+  const topPad = Math.max(180, pad * 0.4);
+  const bottomPad = Math.max(240, pad * 0.45, config.boardWidth + 90);
   const rightDimensionPad = Math.max(pad, 780);
   const viewWidth = config.terraceLength + pad + rightDimensionPad;
-  const viewHeight = config.terraceWidth + pad * 1.6;
+  const viewHeight = config.terraceWidth + topPad + bottomPad;
   const originX = pad;
-  const originY = pad * 0.62;
+  const originY = topPad;
   svgOrigin.x = originX;
   svgOrigin.y = originY;
 
   els.svg.setAttribute("viewBox", `0 0 ${viewWidth} ${viewHeight}`);
+  els.svg.style.aspectRatio = `${viewWidth} / ${viewHeight}`;
   renderDimensionDefs();
 
   els.svg.appendChild(svgEl("rect", {
@@ -751,15 +754,18 @@ function renderAutoPiece(piece, originX, originY) {
 function renderManualSvg(config) {
   clearSvg();
   const pad = Math.max(220, config.terraceLength * 0.08);
+  const topPad = Math.max(180, pad * 0.4);
+  const bottomPad = Math.max(240, pad * 0.45, config.boardWidth + 90);
   const rightDimensionPad = Math.max(pad, 780);
   const viewWidth = config.terraceLength + pad + rightDimensionPad;
-  const viewHeight = config.terraceWidth + pad * 1.6;
+  const viewHeight = config.terraceWidth + topPad + bottomPad;
   const originX = pad;
-  const originY = pad * 0.62;
+  const originY = topPad;
   svgOrigin.x = originX;
   svgOrigin.y = originY;
 
   els.svg.setAttribute("viewBox", `0 0 ${viewWidth} ${viewHeight}`);
+  els.svg.style.aspectRatio = `${viewWidth} / ${viewHeight}`;
   renderDimensionDefs();
 
   const rows = boardRows(config);
@@ -1076,6 +1082,15 @@ function renderSummary(config, layout, joistPositions) {
     return sum + (piecesInRow > 0 ? piecesInRow + 1 : 0);
   }, 0);
 
+  const screwReservePct = 10;
+  let screwBase = 0;
+  for (const piece of layout.pieces) {
+    for (const jx of joistPositions) {
+      if (jx >= piece.x - 0.5 && jx <= piece.x + piece.length + 0.5) screwBase += 2;
+    }
+  }
+  const screwTotal = Math.ceil((screwBase * (1 + screwReservePct / 100)) / 10) * 10;
+
   const topItems = [
     ["Skladová prkna", `${layout.packed.length} ks`],
     ["Položené řady", `${layout.rows.length} řad`],
@@ -1087,6 +1102,7 @@ function renderSummary(config, layout, joistPositions) {
   const bottomItems = [
     ["Podkladní hranoly", `${joistPositions.length} ks / ${((joistPositions.length * config.terraceWidth) / 1000).toFixed(2)} m`],
     ["Distanční podložky", `${spacerCount} ks`],
+    ["Vruty", `${screwTotal} ks (${screwBase} + ${screwReservePct} % rezerva)`],
   ];
 
   const renderDl = (items) => `<dl class="summary-list">${items.map(([label, value]) => `<dt>${label}</dt><dd>${value}</dd>`).join("")}</dl>`;
