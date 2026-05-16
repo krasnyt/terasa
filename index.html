@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Plánovač pokládky terasy</title>
-    <link rel="stylesheet" href="styles.css?v=25" />
+    <link rel="stylesheet" href="styles.css?v=28" />
   </head>
   <body>
     <main class="app-shell">
@@ -92,7 +92,7 @@
               <button id="manualLayoutBtn" type="button">Ručně</button>
             </div>
             <div id="manualLayoutPanel" class="is-hidden">
-              <p class="hint">Přetáhni prkna z palety na výkres. Kliknutím na prkno ho odebeř.</p>
+              <p class="hint">Zadej řady do textového pole, nebo přetáhni prkna z palety nad výkresem.</p>
             </div>
             <div id="autoLayoutPanel">
               <label>
@@ -133,7 +133,7 @@
 
         <section class="panel summary-panel">
           <h2>Výstup</h2>
-          <dl id="summary" class="summary-list"></dl>
+          <div id="summary" class="summary-container"></div>
         </section>
       </aside>
 
@@ -151,15 +151,21 @@
         </header>
 
         <div id="manualPalette" class="manual-palette is-hidden">
-          <label class="palette-length-label">
-            Délka
-            <span class="input-unit palette-length-unit">
-              <input id="manualPieceLength" type="number" min="1" step="10" />
-              <span>mm</span>
-            </span>
+          <label class="manual-text-label">
+            Řady (jedna řádka = jedna řada, prkna oddělená středníky)
+            <textarea id="manualLayoutText" rows="5" spellcheck="false" placeholder="2300; 2300; 400&#10;1000; 2300; 1700"></textarea>
           </label>
-          <div class="palette-board" id="paletteBoardChip">Přetáhni prkno</div>
-          <span class="hint">kliknutím na prkno ho odebeř</span>
+          <div class="manual-drag-block">
+            <label class="palette-length-label">
+              Délka
+              <span class="input-unit palette-length-unit">
+                <input id="manualPieceLength" type="number" min="1" step="10" />
+                <span>mm</span>
+              </span>
+            </label>
+            <div class="palette-board" id="paletteBoardChip">Přetáhni prkno</div>
+            <span class="hint">kliknutím na prkno ho odebeř</span>
+          </div>
         </div>
 
         <div class="drawing-frame">
@@ -180,6 +186,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=36" defer></script>
+    <script src="app.js?v=39" defer></script>
   </body>
 </html>

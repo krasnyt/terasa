@@ -50,6 +50,7 @@ const els = {
   manualPalette: qs("#manualPalette"),
   paletteBoardChip: qs("#paletteBoardChip"),
   manualPieceLength: qs("#manualPieceLength"),
+  manualLayoutText: qs("#manualLayoutText"),
 };
 
 function setupTooltips() {
@@ -397,8 +398,98 @@ function setLayoutMode(mode) {
   els.manualLayoutPanel.classList.toggle("is-hidden", mode !== "manual");
   els.manualPalette.classList.toggle("is-hidden", mode !== "manual");
   document.body.classList.toggle("is-manual-mode", mode === "manual");
+  if (mode === "manual") syncManualTextFromPieces();
   scheduleSave();
   render();
+}
+
+function serializeManualPieces(pieces) {
+  if (!pieces.length) return "";
+  const byRow = new Map();
+  pieces.forEach((p) => {
+    if (!byRow.has(p.row)) byRow.set(p.row, []);
+    byRow.get(p.row).push(p);
+  });
+  const maxRow = Math.max(...byRow.keys());
+  const lines = [];
+  for (let i = 0; i <= maxRow; i++) {
+    const rowPieces = (byRow.get(i) || []).slice().sort((a, b) => a.x - b.x);
+    lines.push(rowPieces.map((p) => Math.round(p.length)).join("; "));
+  }
+  return lines.join("\n");
+}
+
+function parseManualText(text, config) {
+  const rows = boardRows(config);
+  const lines = text.split(/\r?\n/);
+  const pieces = [];
+  lines.forEach((line, lineIdx) => {
+    const tokens = line.split(";").map((s) => s.trim()).filter(Boolean);
+    if (!tokens.length) return;
+    const row = rows[lineIdx];
+    if (!row) return;
+    let x = 0;
+    tokens.forEach((tok, tokIdx) => {
+      const len = Number(tok.replace(",", "."));
+      if (!Number.isFinite(len) || len <= 0) return;
+      pieces.push({
+        id: `t-${lineIdx}-${tokIdx}-${Math.random().toString(36).slice(2, 8)}`,
+        row: lineIdx,
+        x,
+        y: row.y,
+        length: len,
+        width: row.width,
+        patternIndex: lineIdx % 4,
+      });
+      x += len + config.gap;
+    });
+  });
+  return pieces;
+}
+
+function syncManualTextFromPieces() {
+  if (!els.manualLayoutText) return;
+  els.manualLayoutText.value = serializeManualPieces(state.manualPieces);
+}
+
+function computeRowCoverage(rowIndex, pieces, config) {
+  const rowPieces = pieces.filter((p) => p.row === rowIndex);
+  if (!rowPieces.length) return { status: "empty", diff: config.terraceLength };
+  const sorted = rowPieces.slice().sort((a, b) => a.x - b.x);
+  const tol = 0.5;
+  let coveredEnd = 0;
+  let hasGap = sorted[0].x > tol;
+  for (const p of sorted) {
+    if (p.x > coveredEnd + config.gap + tol) hasGap = true;
+    coveredEnd = Math.max(coveredEnd, p.x + p.length);
+  }
+  const diff = coveredEnd - config.terraceLength;
+  if (Math.abs(diff) <= tol && !hasGap) return { status: "ok", diff: 0 };
+  if (diff > tol) return { status: "over", diff };
+  return { status: "short", diff: Math.max(0, -diff) || 1 };
+}
+
+function renderRowCoverage(config, rows, pieces, originX, originY) {
+  const group = svgEl("g", { class: "row-coverage-layer" });
+  els.svg.appendChild(group);
+  const x = originX + config.terraceLength + 72;
+  rows.forEach((row) => {
+    const cov = computeRowCoverage(row.index, pieces, config);
+    const y = originY + row.y + row.width / 2 + 18;
+    let text;
+    let cls;
+    if (cov.status === "ok") { text = "✓ celá"; cls = "row-coverage-ok"; }
+    else if (cov.status === "over") { text = `+${Math.round(cov.diff)} mm`; cls = "row-coverage-over"; }
+    else if (cov.status === "empty") { text = "prázdná"; cls = "row-coverage-empty"; }
+    else { text = `−${Math.round(cov.diff)} mm`; cls = "row-coverage-short"; }
+    const t = svgEl("text", {
+      class: `row-coverage-label ${cls}`,
+      x, y,
+      "text-anchor": "start",
+    });
+    t.textContent = text;
+    group.appendChild(t);
+  });
 }
 
 function computeJoistPositions(config, pieces) {
@@ -534,6 +625,7 @@ function renderSvg(config, layout, joistPositions) {
   renderJoists(config, joistPositions, originX, originY);
   layout.pieces.forEach((piece) => renderAutoPiece(piece, originX, originY));
   renderFullLastBoardExtension(config, layout, originX, originY);
+  renderRowCoverage(config, layout.rows, layout.pieces, originX, originY);
   renderDimensions(config, originX, originY);
 }
 
@@ -692,6 +784,7 @@ function renderManualSvg(config) {
   renderJoists(config, joistPositions, originX, originY);
   state.manualPieces.forEach((piece) => renderManualPiece(piece, config, originX, originY));
   renderFullLastBoardExtension(config, { rows }, originX, originY);
+  renderRowCoverage(config, rows, state.manualPieces, originX, originY);
   renderDimensions(config, originX, originY);
 }
 
@@ -978,16 +1071,26 @@ function renderSummary(config, layout, joistPositions) {
   const waste = Math.max(0, purchased - used);
   const coverageWidth = layout.rows.reduce((sum, row) => sum + row.width, 0) + Math.max(0, layout.rows.length - 1) * config.gap;
 
-  const items = [
+  const spacerCount = layout.rows.reduce((sum, row) => {
+    const piecesInRow = layout.pieces.filter((p) => p.row === row.index).length;
+    return sum + (piecesInRow > 0 ? piecesInRow + 1 : 0);
+  }, 0);
+
+  const topItems = [
     ["Skladová prkna", `${layout.packed.length} ks`],
     ["Položené řady", `${layout.rows.length} řad`],
     ["Řezané díly", `${pieceCount} ks`],
-    ["Podkladní hranoly", `${joistPositions.length} ks / ${((joistPositions.length * config.terraceWidth) / 1000).toFixed(2)} m`],
     ["Celkový odpad", `${Math.round(waste)} mm (${purchased ? ((waste / purchased) * 100).toFixed(1) : "0.0"} %)`],
     ["Pokrytá šířka", `${Math.round(Math.min(coverageWidth, config.terraceWidth))} mm`],
   ];
 
-  els.summary.innerHTML = items.map(([label, value]) => `<dt>${label}</dt><dd>${value}</dd>`).join("");
+  const bottomItems = [
+    ["Podkladní hranoly", `${joistPositions.length} ks / ${((joistPositions.length * config.terraceWidth) / 1000).toFixed(2)} m`],
+    ["Distanční podložky", `${spacerCount} ks`],
+  ];
+
+  const renderDl = (items) => `<dl class="summary-list">${items.map(([label, value]) => `<dt>${label}</dt><dd>${value}</dd>`).join("")}</dl>`;
+  els.summary.innerHTML = `${renderDl(topItems)}<hr class="summary-divider" />${renderDl(bottomItems)}`;
 }
 
 function renderCutList(config, boards) {
@@ -1215,6 +1318,7 @@ function onDragEnd(e) {
 
   if (dragState?.type === "resize-right" || dragState?.type === "resize-left") {
     hideBoardTooltip();
+    syncManualTextFromPieces();
     scheduleSave();
     render();
     dragState = null;
@@ -1226,6 +1330,7 @@ function onDragEnd(e) {
     state.manualPieces = state.manualPieces.filter((p) => p.id !== dragState.pieceId);
     dragState = null;
     pointerDownInfo = null;
+    syncManualTextFromPieces();
     scheduleSave();
     render();
     return;
@@ -1253,6 +1358,7 @@ function onDragEnd(e) {
         piece.patternIndex = dragState.previewRow.index % 4;
       }
     }
+    syncManualTextFromPieces();
     scheduleSave();
     render();
   }
@@ -1323,6 +1429,13 @@ els.manualPieceLength.addEventListener("input", () => {
   const config = readConfig();
   const len = Number(els.manualPieceLength.value) || config.boardLength;
   els.paletteBoardChip.textContent = `Přetáhni prkno ${Math.round(len)} mm`;
+});
+
+els.manualLayoutText.addEventListener("input", () => {
+  const config = readConfig();
+  state.manualPieces = parseManualText(els.manualLayoutText.value, config);
+  scheduleSave();
+  render();
 });
 
 els.paletteBoardChip.addEventListener("pointerdown", startPaletteDrag);

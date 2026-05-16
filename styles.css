@@ -315,15 +315,36 @@ textarea {
 }
 
 .manual-palette {
-  display: flex;
+  display: grid;
   gap: 12px;
-  align-items: center;
-  padding: 10px 14px;
+  padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--soft);
   color: var(--muted);
   font-size: 0.84rem;
+}
+
+.manual-text-label {
+  display: grid;
+  gap: 6px;
+  color: var(--ink);
+  font-size: 0.84rem;
+  font-weight: 650;
+}
+
+.manual-text-label textarea {
+  min-height: 96px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.manual-drag-block {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
 }
 
 .palette-board {
@@ -365,6 +386,17 @@ textarea {
 
 .is-manual-mode .board-piece {
   cursor: grab;
+}
+
+.summary-container {
+  display: grid;
+  gap: 12px;
+}
+
+.summary-divider {
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--line);
 }
 
 .summary-list {
@@ -644,6 +676,21 @@ textarea {
   font-size: 58px;
   stroke-width: 14px;
 }
+
+.row-coverage-label {
+  font-size: 64px;
+  font-weight: 800;
+  paint-order: stroke;
+  stroke: rgba(255, 255, 255, 0.92);
+  stroke-linejoin: round;
+  stroke-width: 14px;
+  pointer-events: none;
+}
+
+.row-coverage-ok { fill: #137333; }
+.row-coverage-short { fill: var(--danger); }
+.row-coverage-over { fill: var(--warn); }
+.row-coverage-empty { fill: var(--muted); }
 
 .piece-label {
   fill: #fff;

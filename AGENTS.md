@@ -44,7 +44,13 @@ Aplikace nabízí tři režimy přepínatelné segmentovaným tlačítkem „Aut
 
 ### Ručně
 
-- Uživatel přetáhne prkna z palety nad výkresem na požadovanou pozici a řadu. Délku kusu určuje vstup „Délka" v paletě — výchozí hodnota je délka skladového prkna, lze zadat libovolný kratší řez. Popisek chipu se aktualizuje živě.
+- **Textový vstup řad:** Nad výkresem je textarea „Řady", kde každá řádka odpovídá jedné řadě terasy (řada 1 = první řádka). Délky prken se v rámci řady oddělují středníky (`;`), kolem středníků se ignoruje libovolný počet mezer. Příklad:
+  ```
+  2300; 2300; 400
+  1000; 2300; 1700
+  ```
+  Při změně textu se prkna přepočítají a vykreslí v dané řadě těsně zleva, oddělená mezerou `Mezera`. Řádky bez čísel zůstanou prázdné, řádky nad rámec dostupných řad terasy se ignorují.
+- **Drag&drop:** Vedle textarey lze stále přetahovat prkna z palety nad výkresem na konkrétní pozici a řadu. Délku kusu určuje vstup „Délka" v paletě — výchozí hodnota je délka skladového prkna, lze zadat libovolný kratší řez. Popisek chipu se aktualizuje živě. Po každém přetažení, změně velikosti nebo odebrání se obsah textarey přegeneruje z aktuálního stavu prken (sečteno po řadách, prkna seřazená podle pozice X; pozice X v rámci řady se v textu nereprezentuje, takže text je „lossy" reprezentací volně rozmístěných prken).
 - **Snap:** Při přetahování se prkno automaticky přichytí k nejbližší hraně sousedního prkna (s mezerou) nebo k okraji terasy, pokud je kurzor blíže než ~22 px v SVG souřadnicích.
 - Přetažením lze i přesouvat již umístěná prkna. Prkno se drží v místě úchopu — poloha levého kraje se přepočítává jako `kurzor − offset_úchopu`, takže prkno se pohybuje relativně bez skoku.
 - **Změna velikosti:** Uchopením levého nebo pravého kraje prkna (do ~22 px od okraje v datových souřadnicích, včetně oblasti v mezeře mimo rect) lze prkno zmenšit nebo zvětšit. Minimum = min. odřezek, maximum = délka skladového prkna. Kurzor se při přiblížení ke kraji změní na `ew-resize`. Během tažení se zobrazuje tooltip s aktuální délkou.
@@ -57,6 +63,13 @@ Aplikace nabízí tři režimy přepínatelné segmentovaným tlačítkem „Aut
 
 - Řady se počítají podle šířky prkna a mezery.
 - Barva prken ve výkresu se řídí pozicí řady, aby byly řady vizuálně odlišitelné.
+- **Indikátor pokrytí řady:** Vpravo od každé řady je v SVG vykreslený štítek pokrytí:
+  - `✓ celá` (zelená) — prkna + povinné mezery mezi nimi přesně pokrývají celou délku terasy (tolerance ±0,5 mm a žádná díra větší než `Mezera`).
+  - `−X mm` (červená) — v řadě chybí X mm prkna (krátká řada nebo díra uvnitř).
+  - `+X mm` (oranžová) — v řadě přebývá X mm (prkna přesahují za pravý kraj terasy).
+  - `prázdná` (šedá) — v řadě není žádné prkno.
+  
+  V režimech Automat a Ideální je vždy `✓ celá`, protože pokrytí je dáno konstrukcí. V ručním režimu se přepočítává živě podle textareu a drag&drop akcí.
 - Vybraný režim a ručně umístěná prkna se ukládají do localStorage spolu s ostatními nastaveními.
 
 ## Podkladní hranoly
@@ -84,12 +97,18 @@ Aplikace nabízí tři režimy přepínatelné segmentovaným tlačítkem „Aut
 
 ## Výstupy
 
+Panel „Výstup" je rozdělen vodorovnou čárou na dvě sekce. Nad čárou je obecná spotřeba materiálu, pod čárou navazující drobný materiál (hranoly a spojovací prvky).
+
+**Nad čárou:**
 - Počet skladových prken potřebných k nákupu.
 - Počet položených řad.
 - Počet řezaných dílů.
-- Počet podkladních hranolovníků a jejich celková délka v metrech (počet × šířka terasy).
 - Celkový odpad v milimetrech a procentech.
 - Pokrytá šířka terasy.
+
+**Pod čárou:**
+- Počet podkladních hranolovníků a jejich celková délka v metrech (počet × šířka terasy).
+- Počet distančních podložek. Spočítá se po řadách jako `počet prken v řadě + 1` (každá spára mezi dvěma prkny + jedna podložka na každém kraji řady). Prázdné řady se nezapočítávají.
 - Řezný plán pro jednotlivá skladová prkna.
 - V řezném plánu má každé skladové prkno stejnou vizuální délku.
 - Řezný plán ukazuje jednotlivé řezy a odpad pro každé skladové prkno.
