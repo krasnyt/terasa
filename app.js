@@ -654,15 +654,6 @@ function renderAutoPiece(piece, originX, originY) {
     }));
   }
 
-  if (piece.length > 420) {
-    const text = svgEl("text", {
-      class: "piece-label",
-      x: originX + piece.x + piece.length / 2,
-      y: originY + piece.y + piece.width / 2,
-    });
-    text.textContent = `${Math.round(piece.length)}`;
-    els.svg.appendChild(text);
-  }
 }
 
 function renderManualSvg(config) {
@@ -740,11 +731,6 @@ function renderManualPiece(piece, config, originX, originY) {
     els.svg.appendChild(t);
   }
 
-  if (piece.length > 420) {
-    const t = svgEl("text", { class: "piece-label", x: originX + piece.x + piece.length / 2, y: originY + piece.y + piece.width / 2 });
-    t.textContent = `${Math.round(piece.length)}`;
-    els.svg.appendChild(t);
-  }
 }
 
 function renderFullLastBoardExtension(config, layout, originX, originY) {
@@ -1209,7 +1195,8 @@ function onDragMove(e) {
   if (!row) { clearSvgPreview(); dragState.previewRow = null; return; }
   const excludeId = dragState.type === "move" ? dragState.pieceId : null;
   const pieceLength = dragState.pieceLength || config.boardLength;
-  const snappedX = snapX(data.x, row.index, pieceLength, config, excludeId);
+  const rawX = data.x - (dragState.grabOffsetX ?? 0);
+  const snappedX = snapX(rawX, row.index, pieceLength, config, excludeId);
   dragState.previewX = snappedX;
   dragState.previewRow = row;
   updateSvgPreview(snappedX, row, pieceLength);
@@ -1292,7 +1279,9 @@ function startPieceDrag(e, pieceId) {
   e.preventDefault();
   const piece = state.manualPieces.find((p) => p.id === pieceId);
   const pieceLength = piece?.length ?? readConfig().boardLength;
-  dragState = { type: "move", pieceId, previewX: null, previewRow: null, pieceLength };
+  const data = clientToSvgData(e.clientX, e.clientY);
+  const grabOffsetX = data && piece ? data.x - piece.x : 0;
+  dragState = { type: "move", pieceId, previewX: null, previewRow: null, pieceLength, grabOffsetX };
   els.svg.style.cursor = "grabbing";
   pointerDownInfo = { x: e.clientX, y: e.clientY };
   document.addEventListener("pointermove", onDragMove);
@@ -1340,23 +1329,23 @@ els.paletteBoardChip.addEventListener("pointerdown", startPaletteDrag);
 
 els.svg.addEventListener("pointerdown", (e) => {
   if (state.layoutMode !== "manual") return;
+  const data = clientToSvgData(e.clientX, e.clientY);
+  if (!data) return;
+  const thr = getSnapThresholdMm();
+
+  // Check edge proximity first (matches cursor logic in pointermove)
+  for (const piece of state.manualPieces) {
+    if (data.y < piece.y - 4 || data.y > piece.y + piece.width + 4) continue;
+    const dL = Math.abs(data.x - piece.x);
+    const dR = Math.abs(data.x - (piece.x + piece.length));
+    if (dL < thr && dL <= dR) { startResizeDrag(e, piece.id, "left"); return; }
+    if (dR < thr) { startResizeDrag(e, piece.id, "right"); return; }
+  }
+
+  // Fall through to move intent
   const target = e.target.closest("[data-manual-piece-id]");
   if (!target) return;
-  const pieceId = target.dataset.manualPieceId;
-  const piece = state.manualPieces.find((p) => p.id === pieceId);
-  if (!piece) return;
-  const data = clientToSvgData(e.clientX, e.clientY);
-  if (!data) { startPieceDrag(e, pieceId); return; }
-  const thr = getSnapThresholdMm();
-  const distLeft = Math.abs(data.x - piece.x);
-  const distRight = Math.abs(data.x - (piece.x + piece.length));
-  if (distLeft < thr && distLeft <= distRight) {
-    startResizeDrag(e, pieceId, "left");
-  } else if (distRight < thr) {
-    startResizeDrag(e, pieceId, "right");
-  } else {
-    startPieceDrag(e, pieceId);
-  }
+  startPieceDrag(e, target.dataset.manualPieceId);
 });
 
 els.svg.addEventListener("pointerover", showBoardTooltip);
