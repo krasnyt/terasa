@@ -18,6 +18,7 @@ Tento soubor je průběžný popis funkcí aplikace. Při každém přidání, z
 - Mezera mezi prkny v milimetrech.
 - Minimální použitelný odřezek v milimetrech.
 - Počet řad, po kterých se má opakovat vzor spár.
+- Odsazení krajních hranolovníků od okraje terasy v milimetrech.
 - U všech vstupů je ikona nápovědy s vysvětlivkou při hoveru, focusu nebo kliknutí.
 
 ## Návrh pokládky
@@ -32,11 +33,10 @@ Tento soubor je průběžný popis funkcí aplikace. Při každém přidání, z
 
 ## Podkladní hranoly
 
-- Aplikace počítá pozice podkladních hranolovníků: hranol musí být pod každou sparou (místem, kde se setkají dva díly v jedné řadě) a navíc přibližně 200 mm od každého kraje terasy.
+- Aplikace počítá pozice podkladních hranolovníků: hranol musí být pod každou sparou (místem, kde se setkají dva díly v jedné řadě) a navíc ve vzdálenosti dané vstupem „Odsazení krajních hranolovníků" od každého kraje terasy.
 - Pozice hranolovníků jsou unikátní x-souřadnice přes všechny řady vzoru.
-- Ve výkresu jsou hranolovníky zobrazeny jako svislé přerušované čáry v hnědo-oranžové barvě přes celou šířku terasy.
-- Nad terasou jsou kóty vzdáleností mezi sousedními hranolovníky.
-- V souhrnu je uveden celkový počet hranolovníků.
+- Ve výkresu jsou hranolovníky zobrazeny jako svislé přerušované čáry v hnědo-oranžové barvě. Jsou vykresleny pod prkny, takže jsou viditelné pouze v mezerách mezi řadami — prkna je překrývají.
+- Nad terasou jsou tick marky a kóty vzdáleností mezi všemi sousedními hranolovníky, včetně kót od okraje terasy k prvnímu a poslednímu hranolu.
 
 ## Vizualizace
 
@@ -49,6 +49,7 @@ Tento soubor je průběžný popis funkcí aplikace. Při každém přidání, z
 - Výkres obsahuje detailní kóty šířky prkna a mezery.
 - Kóty jsou umístěné mimo samotnou plochu pokládky, aby nepřekrývaly prkna.
 - Pokud je poslední řada užší než celé prkno, výkres ukáže průsvitný pás s informací, o kolik by se terasa musela rozšířit, aby poslední prkno nebylo nutné podélně řezat.
+- Při hoveru na díl prkna se prkno vizuálně zvýrazní (zesvětlení a bílý obrys), aby bylo zřejmé, na které prkno ukazatel míří.
 - Při hoveru nebo kliknutí na díl prkna se zobrazí tooltip.
 - Tooltip prkna má pevnou strukturu a šířku, aby údaje při přejíždění mezi prkny neodskakovaly.
 - Tooltip prkna zobrazuje rozměr dílu, pozici levého horního rohu `[x;y]` vůči levému hornímu rohu terasy a číslo řady.
@@ -58,6 +59,7 @@ Tento soubor je průběžný popis funkcí aplikace. Při každém přidání, z
 - Počet skladových prken potřebných k nákupu.
 - Počet položených řad.
 - Počet řezaných dílů.
+- Počet podkladních hranolovníků a jejich celková délka v metrech (počet × šířka terasy).
 - Celkový odpad v milimetrech a procentech.
 - Pokrytá šířka terasy.
 - Řezný plán pro jednotlivá skladová prkna.
@@ -71,4 +73,5 @@ Tento soubor je průběžný popis funkcí aplikace. Při každém přidání, z
 - Aplikace běží jako statický web.
 - Lokálně ji lze spustit například přes `python3 -m http.server 8765`.
 - Prohlížečová cache je obcházená verzemi u `styles.css` a `app.js`.
+- Výchozí hodnoty všech vstupů jsou definované v objektu `DEFAULTS` v `app.js`. Při startu se načtou z `localStorage` (klíč `terasa-navrh`), při nedostupnosti se použijí `DEFAULTS`. Při každé změně vstupu se hodnoty po 5 sekundách automaticky uloží zpět.
 - Git repozitář používá české texty commitů.
