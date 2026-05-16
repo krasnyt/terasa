@@ -269,12 +269,14 @@ function renderSvg(config, layout) {
   clearSvg();
   const trayWidth = state.mode === "manual" ? config.terraceLength * 0.42 : 0;
   const pad = Math.max(220, config.terraceLength * 0.08);
-  const viewWidth = config.terraceLength + pad * 2 + trayWidth;
+  const rightDimensionPad = Math.max(pad, 780);
+  const viewWidth = config.terraceLength + pad + rightDimensionPad + trayWidth;
   const viewHeight = config.terraceWidth + pad * 1.6;
   const originX = pad;
   const originY = pad * 0.62;
 
   els.svg.setAttribute("viewBox", `${-trayWidth} 0 ${viewWidth} ${viewHeight}`);
+  renderDimensionDefs();
 
   if (state.mode === "manual") {
     renderTray(config, originY);
@@ -310,6 +312,25 @@ function renderSvg(config, layout) {
   renderDimensions(config, originX, originY);
 }
 
+function renderDimensionDefs() {
+  const defs = svgEl("defs");
+  const marker = svgEl("marker", {
+    id: "dimensionArrow",
+    viewBox: "0 0 10 10",
+    refX: 5,
+    refY: 5,
+    markerWidth: 7,
+    markerHeight: 7,
+    orient: "auto-start-reverse",
+  });
+  marker.appendChild(svgEl("path", {
+    d: "M 0 0 L 10 5 L 0 10 z",
+    class: "dimension-arrow",
+  }));
+  defs.appendChild(marker);
+  els.svg.appendChild(defs);
+}
+
 function renderTray(config, originY) {
   els.svg.appendChild(svgEl("text", {
     class: "tray-label",
@@ -340,11 +361,18 @@ function renderAutoPiece(piece, originX, originY) {
 
   if (piece.x > 0) {
     els.svg.appendChild(svgEl("line", {
+      class: "seam-halo",
+      x1: originX + piece.x,
+      y1: originY + piece.y + 6,
+      x2: originX + piece.x,
+      y2: originY + piece.y + piece.width - 6,
+    }));
+    els.svg.appendChild(svgEl("line", {
       class: "seam-line",
       x1: originX + piece.x,
-      y1: originY + piece.y,
+      y1: originY + piece.y + 6,
       x2: originX + piece.x,
-      y2: originY + piece.y + piece.width,
+      y2: originY + piece.y + piece.width - 6,
     }));
   }
 
@@ -391,24 +419,126 @@ function renderManualPiece(piece, config, originX, originY) {
 }
 
 function renderDimensions(config, originX, originY) {
-  const lengthLabel = svgEl("text", {
-    class: "dimension-label",
-    x: originX + config.terraceLength / 2,
-    y: originY + config.terraceWidth + 42,
-    "text-anchor": "middle",
-  });
-  lengthLabel.textContent = `${Math.round(config.terraceLength)} mm`;
-  els.svg.appendChild(lengthLabel);
+  const group = svgEl("g", { class: "dimension-layer" });
+  els.svg.appendChild(group);
 
-  const widthLabel = svgEl("text", {
-    class: "dimension-label",
-    x: originX - 42,
-    y: originY + config.terraceWidth / 2,
-    transform: `rotate(-90 ${originX - 42} ${originY + config.terraceWidth / 2})`,
-    "text-anchor": "middle",
+  const bottomY = originY + config.terraceWidth + 170;
+  const leftX = originX - 72;
+  const rightX = originX + config.terraceLength + 62;
+  const topY = originY;
+  const deckBottomY = originY + config.terraceWidth;
+
+  appendDimensionLine(group, {
+    x1: originX,
+    y1: bottomY,
+    x2: originX + config.terraceLength,
+    y2: bottomY,
+    label: `${Math.round(config.terraceLength)} mm`,
+    labelX: originX + config.terraceLength / 2,
+    labelY: bottomY - 48,
   });
-  widthLabel.textContent = `${Math.round(config.terraceWidth)} mm`;
-  els.svg.appendChild(widthLabel);
+  appendExtensionLine(group, originX, deckBottomY, originX, bottomY + 18);
+  appendExtensionLine(group, originX + config.terraceLength, deckBottomY, originX + config.terraceLength, bottomY + 18);
+
+  appendDimensionLine(group, {
+    x1: leftX,
+    y1: topY,
+    x2: leftX,
+    y2: deckBottomY,
+    label: `${Math.round(config.terraceWidth)} mm`,
+    labelX: leftX - 42,
+    labelY: originY + config.terraceWidth / 2,
+    rotate: -90,
+  });
+  appendExtensionLine(group, leftX - 18, topY, originX, topY);
+  appendExtensionLine(group, leftX - 18, deckBottomY, originX, deckBottomY);
+
+  appendDimensionLine(group, {
+    x1: rightX,
+    y1: originY,
+    x2: rightX,
+    y2: originY + config.boardWidth,
+    label: `prkno ${Math.round(config.boardWidth)} mm`,
+    labelX: rightX + 42,
+    labelY: originY + config.boardWidth / 2 + 14,
+    anchor: "start",
+    className: "dimension-label dimension-detail-label",
+  });
+  appendExtensionLine(group, originX + config.terraceLength, originY, rightX + 14, originY);
+  appendExtensionLine(group, originX + config.terraceLength, originY + config.boardWidth, rightX + 14, originY + config.boardWidth);
+
+  if (config.gap > 0) {
+    const gapTop = originY + config.boardWidth;
+    const gapCenter = gapTop + config.gap / 2;
+    group.appendChild(svgEl("line", {
+      class: "dimension-extension",
+      x1: originX + config.terraceLength,
+      y1: gapCenter,
+      x2: rightX + 10,
+      y2: gapCenter,
+    }));
+    group.appendChild(svgEl("circle", {
+      class: "dimension-point",
+      cx: originX + config.terraceLength,
+      cy: gapCenter,
+      r: 5,
+    }));
+    appendDimensionText(group, {
+      label: `mezera ${Math.round(config.gap)} mm`,
+      x: rightX + 42,
+      y: gapCenter + 14,
+      anchor: "start",
+      className: "dimension-label dimension-detail-label",
+    });
+  }
+}
+
+function appendDimensionLine(parent, options) {
+  parent.appendChild(svgEl("line", {
+    class: "dimension-line",
+    x1: options.x1,
+    y1: options.y1,
+    x2: options.x2,
+    y2: options.y2,
+    "marker-start": "url(#dimensionArrow)",
+    "marker-end": "url(#dimensionArrow)",
+  }));
+  appendDimensionText(parent, {
+    label: options.label,
+    x: options.labelX,
+    y: options.labelY,
+    rotate: options.rotate,
+    anchor: options.anchor,
+    className: options.className,
+  });
+}
+
+function appendDimensionText(parent, options) {
+  const attrs = {
+    class: options.className || "dimension-label",
+    x: options.x,
+    y: options.y,
+    "text-anchor": "middle",
+  };
+
+  if (options.anchor) attrs["text-anchor"] = options.anchor;
+  if (options.rotate) {
+    attrs.transform = `rotate(${options.rotate} ${options.x} ${options.y})`;
+  }
+
+  const text = svgEl("text", attrs);
+  text.textContent = options.label;
+  parent.appendChild(text);
+}
+
+function appendExtensionLine(parent, x1, y1, x2, y2) {
+  parent.appendChild(svgEl("line", {
+    class: "dimension-extension",
+    x1,
+    y1,
+    x2,
+    y2,
+  }));
 }
 
 function renderSummary(config, layout) {
@@ -424,7 +554,7 @@ function renderSummary(config, layout) {
     ["Skladová prkna", `${layout.packed.length} ks`],
     ["Položené řady", `${layout.rows.length} řad`],
     ["Řezané díly", `${pieceCount} ks`],
-    ["Celkový prořez", `${Math.round(waste)} mm (${purchased ? ((waste / purchased) * 100).toFixed(1) : "0.0"} %)`],
+    ["Celkový odpad", `${Math.round(waste)} mm (${purchased ? ((waste / purchased) * 100).toFixed(1) : "0.0"} %)`],
     ["Pokrytá šířka", `${Math.round(Math.min(coverageWidth, config.terraceWidth))} mm`],
   ];
 

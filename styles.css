@@ -415,10 +415,39 @@ textarea {
   opacity: 0.82;
 }
 
+.seam-halo {
+  stroke: rgba(255, 255, 255, 0.82);
+  stroke-linecap: round;
+  stroke-width: 22;
+}
+
 .seam-line {
-  stroke: var(--accent-dark);
-  stroke-width: 1.4;
-  stroke-dasharray: 3 3;
+  stroke: #17324d;
+  stroke-linecap: round;
+  stroke-width: 8;
+}
+
+.dimension-layer {
+  pointer-events: none;
+}
+
+.dimension-line {
+  stroke: #1f2933;
+  stroke-width: 5;
+}
+
+.dimension-extension {
+  stroke: rgba(31, 41, 51, 0.58);
+  stroke-width: 3.5;
+  stroke-dasharray: 18 14;
+}
+
+.dimension-arrow {
+  fill: #1f2933;
+}
+
+.dimension-point {
+  fill: #1f2933;
 }
 
 .dimension-label,
@@ -428,6 +457,19 @@ textarea {
   font-size: 12px;
   font-weight: 700;
   pointer-events: none;
+}
+
+.dimension-label {
+  font-size: 76px;
+  paint-order: stroke;
+  stroke: rgba(255, 255, 255, 0.9);
+  stroke-linejoin: round;
+  stroke-width: 18px;
+}
+
+.dimension-detail-label {
+  font-size: 58px;
+  stroke-width: 14px;
 }
 
 .piece-label {
