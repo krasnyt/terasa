@@ -44,7 +44,7 @@ Aplikace nabízí tři režimy přepínatelné segmentovaným tlačítkem „Aut
 
 ### Ručně
 
-- Uživatel přetáhne prkna (délky = délka skladového prkna) z palety nad výkresem na požadovanou pozici a řadu.
+- Uživatel přetáhne prkna z palety nad výkresem na požadovanou pozici a řadu. Délku kusu určuje vstup „Délka" v paletě — výchozí hodnota je délka skladového prkna, lze zadat libovolný kratší řez. Popisek chipu se aktualizuje živě.
 - **Snap:** Při přetahování se prkno automaticky přichytí k nejbližší hraně sousedního prkna (s mezerou) nebo k okraji terasy, pokud je kurzor blíže než ~22 px v SVG souřadnicích.
 - Přetažením lze i přesouvat již umístěná prkna.
 - Kliknutí (pohyb < 8 px) na umístěné prkno ho odebere.

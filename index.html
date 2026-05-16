@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Plánovač pokládky terasy</title>
-    <link rel="stylesheet" href="styles.css?v=24" />
+    <link rel="stylesheet" href="styles.css?v=25" />
   </head>
   <body>
     <main class="app-shell">
@@ -151,8 +151,15 @@
         </header>
 
         <div id="manualPalette" class="manual-palette is-hidden">
-          <div class="palette-board" id="paletteBoardChip">Prkno</div>
-          <span>přetáhni na výkres · kliknutím na prkno ho odebeř</span>
+          <label class="palette-length-label">
+            Délka
+            <span class="input-unit palette-length-unit">
+              <input id="manualPieceLength" type="number" min="1" step="10" />
+              <span>mm</span>
+            </span>
+          </label>
+          <div class="palette-board" id="paletteBoardChip">Přetáhni prkno</div>
+          <span class="hint">kliknutím na prkno ho odebeř</span>
         </div>
 
         <div class="drawing-frame">
@@ -173,6 +180,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=34" defer></script>
+    <script src="app.js?v=35" defer></script>
   </body>
 </html>

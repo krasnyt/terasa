@@ -49,6 +49,7 @@ const els = {
   manualLayoutPanel: qs("#manualLayoutPanel"),
   manualPalette: qs("#manualPalette"),
   paletteBoardChip: qs("#paletteBoardChip"),
+  manualPieceLength: qs("#manualPieceLength"),
 };
 
 function setupTooltips() {
@@ -461,7 +462,11 @@ function render() {
   const config = readConfig();
 
   if (state.layoutMode === "manual") {
-    els.paletteBoardChip.textContent = `Prkno ${Math.round(config.boardLength)} mm`;
+    const currentLen = Number(els.manualPieceLength.value);
+    if (!currentLen || currentLen > config.boardLength) {
+      els.manualPieceLength.value = Math.round(config.boardLength);
+    }
+    els.paletteBoardChip.textContent = `Přetáhni prkno ${Math.round(Number(els.manualPieceLength.value) || config.boardLength)} mm`;
     renderManualSvg(config);
     const rows = boardRows(config);
     const packed = packBoards(state.manualPieces.map((p) => p.length), config.boardLength);
@@ -1128,14 +1133,14 @@ function snapX(rawX, rowIndex, boardLength, config, excludeId) {
   return best;
 }
 
-function updateSvgPreview(snappedX, row, config) {
+function updateSvgPreview(snappedX, row, pieceLength) {
   clearSvgPreview();
   els.svg.appendChild(svgEl("rect", {
     id: "manualPreviewRect",
     class: "board-preview-rect",
     x: svgOrigin.x + snappedX,
     y: svgOrigin.y + row.y,
-    width: config.boardLength,
+    width: pieceLength,
     height: row.width,
     rx: 5,
   }));
@@ -1154,10 +1159,11 @@ function onDragMove(e) {
   const row = rowAtData(data.y, rows);
   if (!row) { clearSvgPreview(); dragState.previewRow = null; return; }
   const excludeId = dragState.type === "move" ? dragState.pieceId : null;
-  const snappedX = snapX(data.x, row.index, config.boardLength, config, excludeId);
+  const pieceLength = dragState.pieceLength || config.boardLength;
+  const snappedX = snapX(data.x, row.index, pieceLength, config, excludeId);
   dragState.previewX = snappedX;
   dragState.previewRow = row;
-  updateSvgPreview(snappedX, row, config);
+  updateSvgPreview(snappedX, row, pieceLength);
 }
 
 function onDragEnd(e) {
@@ -1188,7 +1194,7 @@ function onDragEnd(e) {
         row: dragState.previewRow.index,
         x: dragState.previewX,
         y: dragState.previewRow.y,
-        length: config.boardLength,
+        length: dragState.pieceLength || config.boardLength,
         width: dragState.previewRow.width,
         patternIndex: dragState.previewRow.index % 4,
       });
@@ -1213,7 +1219,10 @@ function onDragEnd(e) {
 function startPaletteDrag(e) {
   if (state.layoutMode !== "manual") return;
   e.preventDefault();
-  dragState = { type: "palette", previewX: null, previewRow: null };
+  const config = readConfig();
+  const rawLen = Number(els.manualPieceLength.value);
+  const pieceLength = rawLen > 0 ? rawLen : config.boardLength;
+  dragState = { type: "palette", previewX: null, previewRow: null, pieceLength };
   els.paletteBoardChip.classList.add("is-dragging");
   els.svg.style.cursor = "crosshair";
   pointerDownInfo = { x: e.clientX, y: e.clientY };
@@ -1223,7 +1232,9 @@ function startPaletteDrag(e) {
 
 function startPieceDrag(e, pieceId) {
   e.preventDefault();
-  dragState = { type: "move", pieceId, previewX: null, previewRow: null };
+  const piece = state.manualPieces.find((p) => p.id === pieceId);
+  const pieceLength = piece?.length ?? readConfig().boardLength;
+  dragState = { type: "move", pieceId, previewX: null, previewRow: null, pieceLength };
   els.svg.style.cursor = "grabbing";
   pointerDownInfo = { x: e.clientX, y: e.clientY };
   document.addEventListener("pointermove", onDragMove);
@@ -1242,6 +1253,12 @@ Object.values(inputs).forEach((input) => {
 els.autoLayoutBtn.addEventListener("click", () => setLayoutMode("auto"));
 els.optimalLayoutBtn.addEventListener("click", () => setLayoutMode("optimal"));
 els.manualLayoutBtn.addEventListener("click", () => setLayoutMode("manual"));
+
+els.manualPieceLength.addEventListener("input", () => {
+  const config = readConfig();
+  const len = Number(els.manualPieceLength.value) || config.boardLength;
+  els.paletteBoardChip.textContent = `Přetáhni prkno ${Math.round(len)} mm`;
+});
 
 els.paletteBoardChip.addEventListener("pointerdown", startPaletteDrag);
 
