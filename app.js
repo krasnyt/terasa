@@ -12,7 +12,14 @@ const DEFAULTS = {
   minOffcut: 250,
   patternRows: 3,
   joistEdgeOffset: 200,
+  maxJoistSpacing: 1000,
 };
+
+const state = { layoutMode: "auto", manualPieces: [] };
+
+let svgOrigin = { x: 0, y: 0 };
+let dragState = null;
+let pointerDownInfo = null;
 
 const STORAGE_KEY = "terasa-navrh";
 
@@ -25,6 +32,7 @@ const inputs = {
   minOffcut: qs("#minOffcut"),
   patternRows: qs("#patternRows"),
   joistEdgeOffset: qs("#joistEdgeOffset"),
+  maxJoistSpacing: qs("#maxJoistSpacing"),
 };
 
 const els = {
@@ -33,6 +41,14 @@ const els = {
   cutList: qs("#cutList"),
   warnings: qs("#warnings"),
   boardTooltip: qs("#boardTooltip"),
+  autoLayoutBtn: qs("#autoLayoutBtn"),
+  optimalLayoutBtn: qs("#optimalLayoutBtn"),
+  manualLayoutBtn: qs("#manualLayoutBtn"),
+  autoLayoutPanel: qs("#autoLayoutPanel"),
+  optimalLayoutPanel: qs("#optimalLayoutPanel"),
+  manualLayoutPanel: qs("#manualLayoutPanel"),
+  manualPalette: qs("#manualPalette"),
+  paletteBoardChip: qs("#paletteBoardChip"),
 };
 
 function setupTooltips() {
@@ -79,6 +95,7 @@ function applyConfig(config) {
   inputs.minOffcut.value = config.minOffcut;
   inputs.patternRows.value = config.patternRows;
   inputs.joistEdgeOffset.value = config.joistEdgeOffset;
+  inputs.maxJoistSpacing.value = config.maxJoistSpacing;
 }
 
 let saveTimer = null;
@@ -87,7 +104,7 @@ function scheduleSave() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(readConfig()));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...readConfig(), layoutMode: state.layoutMode, manualPieces: state.manualPieces }));
     } catch {
       // localStorage nedostupný (soukromé prohlížení apod.)
     }
@@ -104,6 +121,7 @@ function readConfig() {
     minOffcut: Math.max(0, Number(inputs.minOffcut.value) || 0),
     patternRows: Math.max(1, Math.round(numberValue(inputs.patternRows, DEFAULTS.patternRows))),
     joistEdgeOffset: Math.max(0, Number(inputs.joistEdgeOffset.value) || 0),
+    maxJoistSpacing: Math.max(100, numberValue(inputs.maxJoistSpacing, DEFAULTS.maxJoistSpacing)),
   };
 }
 
@@ -247,6 +265,141 @@ function createAutoLayout(config) {
   return { rows, pieces, packed, warnings: [], stagger };
 }
 
+function computeOptimalRowLengths(config) {
+  const L = config.terraceLength;
+  const maxSpan = Math.min(config.boardLength, config.maxJoistSpacing);
+
+  if (L < config.minOffcut - 0.5) {
+    return { error: `Délka terasy ${Math.round(L)} mm je menší než minimální odřezek ${Math.round(config.minOffcut)} mm.` };
+  }
+
+  if (maxSpan < config.minOffcut - 0.5) {
+    return { error: `Maximální rozteč hranolů ${Math.round(config.maxJoistSpacing)} mm je menší než minimální odřezek ${Math.round(config.minOffcut)} mm.` };
+  }
+
+  if (L <= maxSpan + 0.5) {
+    return { lengths: [L] };
+  }
+
+  const lengths = [];
+  let placed = 0;
+
+  while (L - placed > maxSpan + 0.5) {
+    lengths.push(maxSpan);
+    placed += maxSpan;
+  }
+
+  let remainder = L - placed;
+  if (remainder > 0.5) {
+    if (remainder < config.minOffcut - 0.5) {
+      const shortage = config.minOffcut - remainder;
+      const prev = lengths[lengths.length - 1];
+      const newPrev = prev - shortage;
+      if (newPrev < config.minOffcut - 0.5) {
+        return { error: `Nelze sestavit rozložení bez dílu kratšího než ${Math.round(config.minOffcut)} mm. Zkus snížit min. odřezek nebo upravit délku terasy.` };
+      }
+      lengths[lengths.length - 1] = newPrev;
+      remainder += shortage;
+    }
+    lengths.push(remainder);
+  }
+
+  return { lengths };
+}
+
+function computeOptimalRowLengthsWithOffset(config, offset) {
+  const L = config.terraceLength;
+  const maxSpan = Math.min(config.boardLength, config.maxJoistSpacing);
+
+  if (L <= offset + 0.5) {
+    return { lengths: [L] };
+  }
+
+  const lengths = [offset];
+  let placed = offset;
+
+  while (L - placed > maxSpan + 0.5) {
+    lengths.push(maxSpan);
+    placed += maxSpan;
+  }
+
+  let remainder = L - placed;
+  if (remainder > 0.5) {
+    if (remainder < config.minOffcut - 0.5) {
+      const shortage = config.minOffcut - remainder;
+      const prev = lengths[lengths.length - 1];
+      const newPrev = prev - shortage;
+      if (newPrev < config.minOffcut - 0.5) {
+        return { error: `Nelze sestavit střídavý vzor bez dílu kratšího než ${Math.round(config.minOffcut)} mm.` };
+      }
+      lengths[lengths.length - 1] = newPrev;
+      remainder += shortage;
+    }
+    lengths.push(remainder);
+  }
+
+  return { lengths };
+}
+
+function computeOptimalLayout(config) {
+  const rows = boardRows(config);
+  const maxSpan = Math.min(config.boardLength, config.maxJoistSpacing);
+  const baseResult = computeOptimalRowLengths(config);
+
+  if (baseResult.error) {
+    return {
+      rows, pieces: [], packed: [],
+      warnings: [{ type: "danger", text: baseResult.error }],
+      invalidPattern: true,
+    };
+  }
+
+  // Try to alternate odd rows by offsetting half of maxSpan (≥ minOffcut required)
+  const stagger = Math.max(config.minOffcut, Math.floor(maxSpan / 2));
+  const canAlternate = rows.length > 1 && stagger < maxSpan - 0.5;
+  const offsetResult = canAlternate ? computeOptimalRowLengthsWithOffset(config, stagger) : null;
+  const alternating = offsetResult && !offsetResult.error;
+
+  const pieces = [];
+  for (const row of rows) {
+    const lengths = (alternating && row.index % 2 === 1) ? offsetResult.lengths : baseResult.lengths;
+    let x = 0;
+    lengths.forEach((length) => {
+      pieces.push({
+        id: `o-${row.index}-${pieces.length}`,
+        row: row.index,
+        x,
+        y: row.y,
+        length,
+        width: row.width,
+        patternIndex: row.index % 4,
+      });
+      x += length;
+    });
+  }
+
+  const packed = packBoards(pieces.map((p) => p.length), config.boardLength);
+  const infoText = alternating
+    ? `Ideální rozložení: liché řady posunuty o ${Math.round(stagger)} mm, max. rozteč ${Math.round(config.maxJoistSpacing)} mm.`
+    : `Ideální rozložení: max. rozteč ${Math.round(config.maxJoistSpacing)} mm. (Střídání nelze použít — zvyš max. rozteč nebo sniž min. odřezek.)`;
+
+  return { rows, pieces, packed, warnings: [{ type: "info", text: infoText }] };
+}
+
+function setLayoutMode(mode) {
+  state.layoutMode = mode;
+  els.autoLayoutBtn.classList.toggle("is-active", mode === "auto");
+  els.optimalLayoutBtn.classList.toggle("is-active", mode === "optimal");
+  els.manualLayoutBtn.classList.toggle("is-active", mode === "manual");
+  els.autoLayoutPanel.classList.toggle("is-hidden", mode !== "auto");
+  els.optimalLayoutPanel.classList.toggle("is-hidden", mode !== "optimal");
+  els.manualLayoutPanel.classList.toggle("is-hidden", mode !== "manual");
+  els.manualPalette.classList.toggle("is-hidden", mode !== "manual");
+  document.body.classList.toggle("is-manual-mode", mode === "manual");
+  scheduleSave();
+  render();
+}
+
 function computeJoistPositions(config, pieces) {
   const seamSet = new Set();
   pieces.forEach((piece) => {
@@ -306,7 +459,22 @@ function clearSvg() {
 function render() {
   hideBoardTooltip();
   const config = readConfig();
-  const layout = createAutoLayout(config);
+
+  if (state.layoutMode === "manual") {
+    els.paletteBoardChip.textContent = `Prkno ${Math.round(config.boardLength)} mm`;
+    renderManualSvg(config);
+    const rows = boardRows(config);
+    const packed = packBoards(state.manualPieces.map((p) => p.length), config.boardLength);
+    const joistPositions = computeJoistPositions(config, state.manualPieces);
+    renderSummary(config, { rows, pieces: state.manualPieces, packed }, joistPositions);
+    renderCutList(config, packed);
+    renderManualWarnings(config, rows);
+    return;
+  }
+
+  const layout = state.layoutMode === "optimal"
+    ? computeOptimalLayout(config)
+    : createAutoLayout(config);
 
   if (layout.invalidPattern) {
     clearSvg();
@@ -331,6 +499,8 @@ function renderSvg(config, layout, joistPositions) {
   const viewHeight = config.terraceWidth + pad * 1.6;
   const originX = pad;
   const originY = pad * 0.62;
+  svgOrigin.x = originX;
+  svgOrigin.y = originY;
 
   els.svg.setAttribute("viewBox", `0 0 ${viewWidth} ${viewHeight}`);
   renderDimensionDefs();
@@ -487,6 +657,88 @@ function renderAutoPiece(piece, originX, originY) {
     });
     text.textContent = `${Math.round(piece.length)}`;
     els.svg.appendChild(text);
+  }
+}
+
+function renderManualSvg(config) {
+  clearSvg();
+  const pad = Math.max(220, config.terraceLength * 0.08);
+  const rightDimensionPad = Math.max(pad, 780);
+  const viewWidth = config.terraceLength + pad + rightDimensionPad;
+  const viewHeight = config.terraceWidth + pad * 1.6;
+  const originX = pad;
+  const originY = pad * 0.62;
+  svgOrigin.x = originX;
+  svgOrigin.y = originY;
+
+  els.svg.setAttribute("viewBox", `0 0 ${viewWidth} ${viewHeight}`);
+  renderDimensionDefs();
+
+  const rows = boardRows(config);
+
+  els.svg.appendChild(svgEl("rect", {
+    class: "deck-outline",
+    x: originX, y: originY,
+    width: config.terraceLength, height: config.terraceWidth, rx: 0,
+  }));
+
+  rows.forEach((row) => {
+    if (row.index > 0) {
+      els.svg.appendChild(svgEl("rect", {
+        x: originX, y: originY + row.y - config.gap,
+        width: config.terraceLength, height: config.gap,
+        fill: "#eef3f8",
+      }));
+    }
+  });
+
+  const joistPositions = computeJoistPositions(config, state.manualPieces);
+  renderJoists(config, joistPositions, originX, originY);
+  state.manualPieces.forEach((piece) => renderManualPiece(piece, config, originX, originY));
+  renderFullLastBoardExtension(config, { rows }, originX, originY);
+  renderDimensions(config, originX, originY);
+}
+
+function renderManualPiece(piece, config, originX, originY) {
+  const overflowLeft = Math.max(0, -piece.x);
+  const overflowRight = Math.max(0, piece.x + piece.length - config.terraceLength);
+  const isOverflow = overflowLeft > 0.5 || overflowRight > 0.5;
+
+  els.svg.appendChild(svgEl("rect", {
+    class: `board-piece pattern-row-${piece.patternIndex % 4}${isOverflow ? " is-overflow" : ""}`,
+    "data-manual-piece-id": piece.id,
+    ...boardTooltipAttrs(piece, piece.width, piece.row + 1, { x: piece.x, y: piece.y }),
+    x: originX + piece.x, y: originY + piece.y,
+    width: piece.length, height: piece.width, rx: 5,
+  }));
+
+  if (overflowLeft > 0.5) {
+    els.svg.appendChild(svgEl("rect", {
+      class: "board-overflow-overlay",
+      x: originX + piece.x, y: originY + piece.y,
+      width: overflowLeft, height: piece.width,
+    }));
+    const t = svgEl("text", { class: "board-overflow-label", x: originX + piece.x + overflowLeft / 2, y: originY + piece.y + piece.width / 2, "text-anchor": "middle", "dominant-baseline": "central" });
+    t.textContent = `−${Math.round(overflowLeft)} mm`;
+    els.svg.appendChild(t);
+  }
+
+  if (overflowRight > 0.5) {
+    const ox = originX + config.terraceLength;
+    els.svg.appendChild(svgEl("rect", {
+      class: "board-overflow-overlay",
+      x: ox, y: originY + piece.y,
+      width: overflowRight, height: piece.width,
+    }));
+    const t = svgEl("text", { class: "board-overflow-label", x: ox + overflowRight / 2, y: originY + piece.y + piece.width / 2, "text-anchor": "middle", "dominant-baseline": "central" });
+    t.textContent = `+${Math.round(overflowRight)} mm`;
+    els.svg.appendChild(t);
+  }
+
+  if (piece.length > 420) {
+    const t = svgEl("text", { class: "piece-label", x: originX + piece.x + piece.length / 2, y: originY + piece.y + piece.width / 2 });
+    t.textContent = `${Math.round(piece.length)}`;
+    els.svg.appendChild(t);
   }
 }
 
@@ -806,6 +1058,180 @@ function renderWarnings(config, layout) {
   )).join("");
 }
 
+function renderManualWarnings(config, rows) {
+  const warnings = [];
+
+  if (state.manualPieces.length === 0) {
+    warnings.push({ type: "info", text: "Přetáhni prkna z palety na výkres." });
+  }
+
+  state.manualPieces.forEach((piece) => {
+    const overflowLeft = Math.max(0, -piece.x);
+    const overflowRight = Math.max(0, piece.x + piece.length - config.terraceLength);
+    if (overflowLeft > 0.5) {
+      warnings.push({ type: "warning", text: `Prkno v řadě ${piece.row + 1} přesahuje vlevo o ${Math.round(overflowLeft)} mm.` });
+    }
+    if (overflowRight > 0.5) {
+      warnings.push({ type: "warning", text: `Prkno v řadě ${piece.row + 1} přesahuje vpravo o ${Math.round(overflowRight)} mm.` });
+    }
+  });
+
+  const fullBoardInfo = fullLastBoardInfo(config, rows);
+  if (fullBoardInfo) {
+    warnings.push({ type: "info", text: `Poslední řada má šířku ${Math.round(fullBoardInfo.currentLastWidth)} mm. Bez podélného řezu by terasa měla šířku ${Math.round(fullBoardInfo.fullWidth)} mm (+${Math.round(fullBoardInfo.extension)} mm).` });
+  }
+
+  if (!warnings.length) {
+    warnings.push({ type: "info", text: "Ručně umístěná prkna – bez automatického řezného plánu." });
+  }
+
+  els.warnings.innerHTML = warnings.map((w) => `<li class="is-${w.type}">${w.text}</li>`).join("");
+}
+
+// ── Manual drag helpers ──────────────────────────────────────────────────────
+
+function clientToSvgData(clientX, clientY) {
+  const rect = els.svg.getBoundingClientRect();
+  const vb = els.svg.viewBox.baseVal;
+  if (!rect.width || !vb.width) return null;
+  return {
+    x: (clientX - rect.left) * (vb.width / rect.width) - svgOrigin.x,
+    y: (clientY - rect.top) * (vb.height / rect.height) - svgOrigin.y,
+  };
+}
+
+function rowAtData(dataY, rows) {
+  return rows.find((row) => dataY >= row.y - 4 && dataY < row.y + row.width + 4) ?? null;
+}
+
+function getSnapThresholdMm() {
+  const rect = els.svg.getBoundingClientRect();
+  const vb = els.svg.viewBox.baseVal;
+  if (!rect.width || !vb.width) return 100;
+  return 22 * (vb.width / rect.width);
+}
+
+function snapX(rawX, rowIndex, boardLength, config, excludeId) {
+  const threshold = getSnapThresholdMm();
+  const rowPieces = state.manualPieces.filter((p) => p.row === rowIndex && p.id !== excludeId);
+  const candidates = [0, config.terraceLength - boardLength];
+  for (const p of rowPieces) {
+    candidates.push(p.x + p.length + config.gap);
+    candidates.push(p.x - boardLength - config.gap);
+  }
+  let best = rawX;
+  let bestDist = threshold;
+  for (const c of candidates) {
+    const dist = Math.abs(rawX - c);
+    if (dist < bestDist) { bestDist = dist; best = c; }
+  }
+  return best;
+}
+
+function updateSvgPreview(snappedX, row, config) {
+  clearSvgPreview();
+  els.svg.appendChild(svgEl("rect", {
+    id: "manualPreviewRect",
+    class: "board-preview-rect",
+    x: svgOrigin.x + snappedX,
+    y: svgOrigin.y + row.y,
+    width: config.boardLength,
+    height: row.width,
+    rx: 5,
+  }));
+}
+
+function clearSvgPreview() {
+  document.getElementById("manualPreviewRect")?.remove();
+}
+
+function onDragMove(e) {
+  if (!dragState) return;
+  const config = readConfig();
+  const rows = boardRows(config);
+  const data = clientToSvgData(e.clientX, e.clientY);
+  if (!data) { clearSvgPreview(); return; }
+  const row = rowAtData(data.y, rows);
+  if (!row) { clearSvgPreview(); dragState.previewRow = null; return; }
+  const excludeId = dragState.type === "move" ? dragState.pieceId : null;
+  const snappedX = snapX(data.x, row.index, config.boardLength, config, excludeId);
+  dragState.previewX = snappedX;
+  dragState.previewRow = row;
+  updateSvgPreview(snappedX, row, config);
+}
+
+function onDragEnd(e) {
+  document.removeEventListener("pointermove", onDragMove);
+  document.removeEventListener("pointerup", onDragEnd);
+  clearSvgPreview();
+  els.svg.style.cursor = "";
+  els.paletteBoardChip.classList.remove("is-dragging");
+
+  const moved = pointerDownInfo
+    ? Math.hypot(e.clientX - pointerDownInfo.x, e.clientY - pointerDownInfo.y)
+    : 999;
+
+  if (dragState?.type === "move" && moved < 8) {
+    state.manualPieces = state.manualPieces.filter((p) => p.id !== dragState.pieceId);
+    dragState = null;
+    pointerDownInfo = null;
+    scheduleSave();
+    render();
+    return;
+  }
+
+  if (dragState?.previewX !== null && dragState?.previewRow) {
+    const config = readConfig();
+    if (dragState.type === "palette") {
+      state.manualPieces.push({
+        id: `m-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        row: dragState.previewRow.index,
+        x: dragState.previewX,
+        y: dragState.previewRow.y,
+        length: config.boardLength,
+        width: dragState.previewRow.width,
+        patternIndex: dragState.previewRow.index % 4,
+      });
+    } else if (dragState.type === "move") {
+      const piece = state.manualPieces.find((p) => p.id === dragState.pieceId);
+      if (piece) {
+        piece.x = dragState.previewX;
+        piece.row = dragState.previewRow.index;
+        piece.y = dragState.previewRow.y;
+        piece.width = dragState.previewRow.width;
+        piece.patternIndex = dragState.previewRow.index % 4;
+      }
+    }
+    scheduleSave();
+    render();
+  }
+
+  dragState = null;
+  pointerDownInfo = null;
+}
+
+function startPaletteDrag(e) {
+  if (state.layoutMode !== "manual") return;
+  e.preventDefault();
+  dragState = { type: "palette", previewX: null, previewRow: null };
+  els.paletteBoardChip.classList.add("is-dragging");
+  els.svg.style.cursor = "crosshair";
+  pointerDownInfo = { x: e.clientX, y: e.clientY };
+  document.addEventListener("pointermove", onDragMove);
+  document.addEventListener("pointerup", onDragEnd);
+}
+
+function startPieceDrag(e, pieceId) {
+  e.preventDefault();
+  dragState = { type: "move", pieceId, previewX: null, previewRow: null };
+  els.svg.style.cursor = "grabbing";
+  pointerDownInfo = { x: e.clientX, y: e.clientY };
+  document.addEventListener("pointermove", onDragMove);
+  document.addEventListener("pointerup", onDragEnd);
+}
+
+// ── Event listeners ──────────────────────────────────────────────────────────
+
 Object.values(inputs).forEach((input) => {
   input.addEventListener("input", () => {
     scheduleSave();
@@ -813,8 +1239,21 @@ Object.values(inputs).forEach((input) => {
   });
 });
 
+els.autoLayoutBtn.addEventListener("click", () => setLayoutMode("auto"));
+els.optimalLayoutBtn.addEventListener("click", () => setLayoutMode("optimal"));
+els.manualLayoutBtn.addEventListener("click", () => setLayoutMode("manual"));
+
+els.paletteBoardChip.addEventListener("pointerdown", startPaletteDrag);
+
+els.svg.addEventListener("pointerdown", (e) => {
+  if (state.layoutMode !== "manual") return;
+  const target = e.target.closest("[data-manual-piece-id]");
+  if (!target) return;
+  startPieceDrag(e, target.dataset.manualPieceId);
+});
+
 els.svg.addEventListener("pointerover", showBoardTooltip);
-els.svg.addEventListener("pointermove", moveBoardTooltip);
+els.svg.addEventListener("pointermove", (e) => { moveBoardTooltip(e); });
 els.svg.addEventListener("pointerout", (event) => {
   if (!event.relatedTarget || !event.relatedTarget.closest?.("[data-board-tooltip]")) {
     hideBoardTooltip();
@@ -823,7 +1262,10 @@ els.svg.addEventListener("pointerout", (event) => {
 els.svg.addEventListener("pointerleave", hideBoardTooltip);
 els.svg.addEventListener("mouseover", showBoardTooltip);
 els.svg.addEventListener("mousemove", moveBoardTooltip);
-els.svg.addEventListener("click", showBoardTooltip);
+els.svg.addEventListener("click", (e) => {
+  if (state.layoutMode === "manual") return;
+  showBoardTooltip(e);
+});
 els.svg.addEventListener("mouseout", (event) => {
   if (!event.relatedTarget || !event.relatedTarget.closest?.("[data-board-tooltip]")) {
     hideBoardTooltip();
@@ -831,6 +1273,9 @@ els.svg.addEventListener("mouseout", (event) => {
 });
 els.svg.addEventListener("mouseleave", hideBoardTooltip);
 
-applyConfig(loadConfig());
+const savedConfig = loadConfig();
+applyConfig(savedConfig);
+state.manualPieces = Array.isArray(savedConfig.manualPieces) ? savedConfig.manualPieces : [];
 setupTooltips();
-render();
+const initialMode = ["auto", "optimal", "manual"].includes(savedConfig.layoutMode) ? savedConfig.layoutMode : "auto";
+setLayoutMode(initialMode);

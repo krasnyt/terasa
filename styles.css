@@ -255,6 +255,101 @@ textarea {
   gap: 12px;
 }
 
+.segmented {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.segmented button {
+  flex: 1;
+  padding: 7px 12px;
+  border-right: 1px solid var(--line);
+  background: var(--soft);
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 650;
+}
+
+.segmented button:last-child {
+  border-right: 0;
+}
+
+.segmented button.is-active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.is-hidden {
+  display: none !important;
+}
+
+.board-piece.is-overflow {
+  stroke: var(--danger);
+  stroke-width: 3;
+}
+
+.board-overflow-overlay {
+  fill: rgba(180, 35, 24, 0.3);
+  pointer-events: none;
+}
+
+.board-overflow-label {
+  fill: var(--danger);
+  font-size: 48px;
+  font-weight: 800;
+  paint-order: stroke;
+  stroke: rgba(255, 255, 255, 0.92);
+  stroke-width: 12px;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.board-preview-rect {
+  fill: rgba(25, 103, 210, 0.14);
+  stroke: var(--accent);
+  stroke-width: 4;
+  stroke-dasharray: 14 8;
+  pointer-events: none;
+}
+
+.manual-palette {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft);
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.palette-board {
+  display: flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 16px;
+  border: 1.5px solid rgba(128, 88, 59, 0.7);
+  border-radius: 5px;
+  background: var(--board);
+  color: #fff;
+  cursor: grab;
+  font-size: 0.84rem;
+  font-weight: 700;
+  user-select: none;
+  touch-action: none;
+}
+
+.palette-board.is-dragging {
+  opacity: 0.4;
+}
+
+.is-manual-mode .board-piece {
+  cursor: grab;
+}
+
 .summary-list {
   display: grid;
   grid-template-columns: 1fr auto;

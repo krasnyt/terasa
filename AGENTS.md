@@ -17,19 +17,46 @@ Tento soubor je průběžný popis funkcí aplikace. Při každém přidání, z
 - Šířka prkna v milimetrech.
 - Mezera mezi prkny v milimetrech.
 - Minimální použitelný odřezek v milimetrech.
-- Počet řad, po kterých se má opakovat vzor spár.
+- Počet řad, po kterých se má opakovat vzor spár (pouze v režimu Automat).
+- Maximální rozteč sousedních hranolů v milimetrech (pouze v režimu Ideální, výchozí 1000 mm).
 - Odsazení krajních hranolovníků od okraje terasy v milimetrech.
 - U všech vstupů je ikona nápovědy s vysvětlivkou při hoveru, focusu nebo kliknutí.
 
 ## Návrh pokládky
 
-- Aplikace automaticky navrhne rozložení prken podle rozměrů terasy, rozměrů prkna, mezery a nastavení vzoru.
-- Posun spár mezi řadami se vždy dopočítá jako délka prkna dělená opakováním vzoru, aby byl vzor pravidelný a všechny řady měly stejnou množinu délek dílů (kvůli minimalizaci odpadu při skládání skladových prken).
+Aplikace nabízí tři režimy přepínatelné segmentovaným tlačítkem „Automat" / „Ideální" / „Ručně" v panelu „Vzor pokládky".
+
+### Automat
+
+- Posun spár mezi řadami se dopočítá jako délka prkna dělená opakováním vzoru, aby byl vzor pravidelný a všechny řady měly stejnou množinu délek dílů.
 - Cílem návrhu je vždy minimalizovat odpad — díly se skládají do skladových prken algoritmem first-fit-decreasing.
-- Aplikace tvrdě respektuje minimální odřezek. Pokud by ve vzoru měl vzniknout díl kratší než minimální odřezek a nelze ho dorovnat zkrácením předchozího plného dílu, zobrazí se chyba a žádný výkres ani řezný plán se nevykreslí.
-- Pokud nelze vytvořit smysluplný vzor (např. opakování vzoru je 1 při více řadách, nebo by posun spár vyšel pod minimální odřezek), aplikace zobrazí chybu a nic nevykreslí.
+- Aplikace tvrdě respektuje minimální odřezek. Pokud by ve vzoru měl vzniknout díl kratší než minimální odřezek a nelze ho dorovnat zkrácením předchozího plného dílu, zobrazí se chyba a nic se nevykreslí.
+- Pokud nelze vytvořit smysluplný vzor (opakování vzoru je 1 při více řadách, nebo by posun spár vyšel pod minimální odřezek), aplikace zobrazí chybu.
+- Vstup „Opakování vzoru" je dostupný pouze v tomto režimu.
+
+### Ideální
+
+- Aplikace spočítá rozložení řezů tak, aby hranoly mohly být od sebe nejvýše „Max. rozteč hranolů" (výchozí 1000 mm).
+- Spáry prken jsou vždy přímo pod hranoly — rozteč hranolů = délka dílu.
+- **Žádné dvě sousední řady nemají spáry na stejných pozicích.** Liché řady jsou posunuty o `max(minOffcut, floor(maxSpan/2))` mm. Pokud posun nelze splnit (příliš malá rozteč), aplikace na to upozorní a použije jednotný vzor.
+- Díly jsou řezány greedy algoritmem: každý díl je co nejdelší (min(délka prkna, max. rozteč)), přičemž se hlídá, aby poslední díl nebyl kratší než minimální odřezek. Pokud to nelze zajistit, zobrazí se chyba.
+- Vstup „Max. rozteč hranolů" je dostupný pouze v tomto režimu.
+
+### Ručně
+
+- Uživatel přetáhne prkna (délky = délka skladového prkna) z palety nad výkresem na požadovanou pozici a řadu.
+- **Snap:** Při přetahování se prkno automaticky přichytí k nejbližší hraně sousedního prkna (s mezerou) nebo k okraji terasy, pokud je kurzor blíže než ~22 px v SVG souřadnicích.
+- Přetažením lze i přesouvat již umístěná prkna.
+- Kliknutí (pohyb < 8 px) na umístěné prkno ho odebere.
+- **Přesah:** Prkno, které přesahuje mimo rozměry terasy, je zvýrazněno červeným okrajem a přesahující část je překryta červeným poloprůsvitným pruhem s popiskem (např. `+230 mm`). Varování na přesahy jsou také v sekci Poznámky.
+- Ručně umístěná prkna se ukládají do localStorage.
+- Vstup „Opakování vzoru" ani „Max. rozteč" v tomto režimu nejsou zobrazeny; ostatní vstupní parametry fungují normálně.
+
+### Společné
+
 - Řady se počítají podle šířky prkna a mezery.
-- Barva prken ve výkresu se řídí pozicí řady ve vzoru, aby byl opakující se vzor lépe čitelný.
+- Barva prken ve výkresu se řídí pozicí řady, aby byly řady vizuálně odlišitelné.
+- Vybraný režim a ručně umístěná prkna se ukládají do localStorage spolu s ostatními nastaveními.
 
 ## Podkladní hranoly
 
