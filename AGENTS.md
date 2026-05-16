@@ -17,30 +17,26 @@ Tento soubor je průběžný popis funkcí aplikace. Při každém přidání, z
 - Šířka prkna v milimetrech.
 - Mezera mezi prkny v milimetrech.
 - Minimální použitelný odřezek v milimetrech.
-- Posun spár mezi řadami v milimetrech.
 - Počet řad, po kterých se má opakovat vzor spár.
-- Seznam délek dílů pro ruční skládání.
 - U všech vstupů je ikona nápovědy s vysvětlivkou při hoveru, focusu nebo kliknutí.
 
-## Automatický režim
+## Návrh pokládky
 
 - Aplikace automaticky navrhne rozložení prken podle rozměrů terasy, rozměrů prkna, mezery a nastavení vzoru.
+- Posun spár mezi řadami se vždy dopočítá jako délka prkna dělená opakováním vzoru, aby byl vzor pravidelný a všechny řady měly stejnou množinu délek dílů (kvůli minimalizaci odpadu při skládání skladových prken).
+- Cílem návrhu je vždy minimalizovat odpad — díly se skládají do skladových prken algoritmem first-fit-decreasing.
+- Aplikace tvrdě respektuje minimální odřezek. Pokud by ve vzoru měl vzniknout díl kratší než minimální odřezek a nelze ho dorovnat zkrácením předchozího plného dílu, zobrazí se chyba a žádný výkres ani řezný plán se nevykreslí.
+- Pokud nelze vytvořit smysluplný vzor (např. opakování vzoru je 1 při více řadách, nebo by posun spár vyšel pod minimální odřezek), aplikace zobrazí chybu a nic nevykreslí.
 - Řady se počítají podle šířky prkna a mezery.
-- Vzor spár se snaží být pravidelný a vizuálně čitelný.
-- Pokud zadaný posun spár způsobí stejné sousední řady, aplikace použije bezpečný pravidelný posun, pokud ho lze vytvořit.
-- Pokud nelze vytvořit vzor bez stejných sousedních řad, aplikace zobrazí chybu a nevykreslí zavádějící řezný plán.
-- Aplikace hlídá minimální délku odřezku a upozorňuje na příliš krátké díly.
 - Barva prken ve výkresu se řídí pozicí řady ve vzoru, aby byl opakující se vzor lépe čitelný.
 
-## Ruční režim
+## Podkladní hranoly
 
-- Uživatel může zadat vlastní délky dílů jako seznam čísel.
-- Zadané díly se vytvoří v zásobníku.
-- Díly lze přetahovat do řad terasy.
-- Ručně nepoložené díly zůstávají mimo terasu v zásobníku.
-- Aplikace umí vrátit ruční díly zpět do zásobníku.
-- Aplikace upozorňuje na překryvy ručně položených dílů ve stejné řadě.
-- Aplikace ukazuje přibližné pokrytí plochy ručně položenými díly.
+- Aplikace počítá pozice podkladních hranolovníků: hranol musí být pod každou sparou (místem, kde se setkají dva díly v jedné řadě) a navíc přibližně 200 mm od každého kraje terasy.
+- Pozice hranolovníků jsou unikátní x-souřadnice přes všechny řady vzoru.
+- Ve výkresu jsou hranolovníky zobrazeny jako svislé přerušované čáry v hnědo-oranžové barvě přes celou šířku terasy.
+- Nad terasou jsou kóty vzdáleností mezi sousedními hranolovníky.
+- V souhrnu je uveden celkový počet hranolovníků.
 
 ## Vizualizace
 

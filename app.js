@@ -3,6 +3,19 @@
 const qs = (selector) => document.querySelector(selector);
 const svgNS = "http://www.w3.org/2000/svg";
 
+const DEFAULTS = {
+  terraceLength: 5000,
+  terraceWidth: 2150,
+  boardLength: 2300,
+  boardWidth: 178,
+  gap: 6,
+  minOffcut: 250,
+  patternRows: 3,
+  joistEdgeOffset: 200,
+};
+
+const STORAGE_KEY = "terasa-navrh";
+
 const inputs = {
   terraceLength: qs("#terraceLength"),
   terraceWidth: qs("#terraceWidth"),
@@ -10,9 +23,8 @@ const inputs = {
   boardWidth: qs("#boardWidth"),
   gap: qs("#gap"),
   minOffcut: qs("#minOffcut"),
-  stagger: qs("#stagger"),
   patternRows: qs("#patternRows"),
-  manualCuts: qs("#manualCuts"),
+  joistEdgeOffset: qs("#joistEdgeOffset"),
 };
 
 const els = {
@@ -21,20 +33,6 @@ const els = {
   cutList: qs("#cutList"),
   warnings: qs("#warnings"),
   boardTooltip: qs("#boardTooltip"),
-  autoMode: qs("#autoMode"),
-  manualMode: qs("#manualMode"),
-  autoPanel: qs("#autoPanel"),
-  manualPanel: qs("#manualPanel"),
-  resetManual: qs("#resetManual"),
-  viewTitle: qs("#viewTitle"),
-  viewSubtitle: qs("#viewSubtitle"),
-};
-
-const state = {
-  mode: "auto",
-  manualPieces: [],
-  drag: null,
-  lastManualSignature: "",
 };
 
 function setupTooltips() {
@@ -63,16 +61,49 @@ function numberValue(input, fallback) {
   return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
+function loadConfig() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+    return { ...DEFAULTS, ...saved };
+  } catch {
+    return { ...DEFAULTS };
+  }
+}
+
+function applyConfig(config) {
+  inputs.terraceLength.value = config.terraceLength;
+  inputs.terraceWidth.value = config.terraceWidth;
+  inputs.boardLength.value = config.boardLength;
+  inputs.boardWidth.value = config.boardWidth;
+  inputs.gap.value = config.gap;
+  inputs.minOffcut.value = config.minOffcut;
+  inputs.patternRows.value = config.patternRows;
+  inputs.joistEdgeOffset.value = config.joistEdgeOffset;
+}
+
+let saveTimer = null;
+
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(readConfig()));
+    } catch {
+      // localStorage nedostupný (soukromé prohlížení apod.)
+    }
+  }, 5000);
+}
+
 function readConfig() {
   return {
-    terraceLength: numberValue(inputs.terraceLength, 5000),
-    terraceWidth: numberValue(inputs.terraceWidth, 2150),
-    boardLength: numberValue(inputs.boardLength, 2300),
-    boardWidth: numberValue(inputs.boardWidth, 178),
+    terraceLength: numberValue(inputs.terraceLength, DEFAULTS.terraceLength),
+    terraceWidth: numberValue(inputs.terraceWidth, DEFAULTS.terraceWidth),
+    boardLength: numberValue(inputs.boardLength, DEFAULTS.boardLength),
+    boardWidth: numberValue(inputs.boardWidth, DEFAULTS.boardWidth),
     gap: Math.max(0, Number(inputs.gap.value) || 0),
     minOffcut: Math.max(0, Number(inputs.minOffcut.value) || 0),
-    stagger: Math.max(0, Number(inputs.stagger.value) || 0),
-    patternRows: Math.max(1, Math.round(numberValue(inputs.patternRows, 3))),
+    patternRows: Math.max(1, Math.round(numberValue(inputs.patternRows, DEFAULTS.patternRows))),
+    joistEdgeOffset: Math.max(0, Number(inputs.joistEdgeOffset.value) || 0),
   };
 }
 
@@ -104,47 +135,101 @@ function fullLastBoardInfo(config, rows) {
   };
 }
 
+function buildRowLengths(config, patternIndex, stagger) {
+  if (config.terraceLength < config.minOffcut - 0.5) {
+    return { error: `Délka terasy ${Math.round(config.terraceLength)} mm je menší než minimální odřezek ${Math.round(config.minOffcut)} mm.` };
+  }
+
+  if (config.terraceLength <= config.boardLength + 0.5) {
+    return { lengths: [config.terraceLength] };
+  }
+
+  const offset = patternIndex * stagger;
+  const firstLength = offset > 0 ? config.boardLength - offset : config.boardLength;
+  const lengths = [firstLength];
+  let placed = firstLength;
+
+  while (config.terraceLength - placed > config.boardLength + 0.5) {
+    lengths.push(config.boardLength);
+    placed += config.boardLength;
+  }
+
+  let remainder = config.terraceLength - placed;
+  if (remainder > 0.5) {
+    if (remainder < config.minOffcut - 0.5) {
+      const shortage = config.minOffcut - remainder;
+      const prev = lengths[lengths.length - 1];
+      if (prev - shortage >= config.minOffcut - 0.5) {
+        lengths[lengths.length - 1] = prev - shortage;
+        remainder = config.minOffcut;
+      }
+    }
+    lengths.push(remainder);
+  }
+
+  return { lengths };
+}
+
 function createAutoLayout(config) {
   const rows = boardRows(config);
   const pieces = [];
-  const warnings = [];
-  const maxOffset = Math.max(0, config.boardLength - config.minOffcut);
-  const staggerChoice = chooseAutoStagger(config, rows.length, maxOffset);
 
-  if (staggerChoice.error) {
+  if (rows.length > 1 && config.patternRows < 2) {
     return {
       rows,
       pieces,
       packed: [],
-      warnings: [{ type: "danger", text: staggerChoice.error }],
+      warnings: [{ type: "danger", text: "Opakování vzoru musí být alespoň 2 řady, jinak by všechny řady měly stejné spáry." }],
       invalidPattern: true,
-      effectiveStagger: 0,
     };
   }
 
-  if (staggerChoice.warning) {
-    warnings.push({ type: "warning", text: staggerChoice.warning });
+  const stagger = rows.length > 1 ? config.boardLength / config.patternRows : 0;
+
+  if (rows.length > 1 && stagger < config.minOffcut - 0.5) {
+    return {
+      rows,
+      pieces,
+      packed: [],
+      warnings: [{
+        type: "danger",
+        text: `Při ${config.patternRows} řadách ve vzoru by posun spár vyšel na ${Math.round(stagger)} mm, což je méně než minimální odřezek ${Math.round(config.minOffcut)} mm. Sniž opakování vzoru, zvětši délku prkna nebo sniž minimální odřezek.`,
+      }],
+      invalidPattern: true,
+    };
   }
 
-  rows.forEach((row) => {
+  for (const row of rows) {
     const patternIndex = row.index % config.patternRows;
-    const rawOffset = patternIndex * staggerChoice.stagger;
-    const offset = rawOffset % config.boardLength;
-    let x = 0;
-    let firstLength = offset > 0 ? config.boardLength - offset : config.boardLength;
+    const result = buildRowLengths(config, patternIndex, stagger);
 
-    if (firstLength < config.minOffcut && config.terraceLength > config.minOffcut) {
-      firstLength = Math.min(config.terraceLength, config.minOffcut);
+    if (result.error) {
+      return {
+        rows,
+        pieces: [],
+        packed: [],
+        warnings: [{ type: "danger", text: result.error }],
+        invalidPattern: true,
+      };
     }
 
-    while (x < config.terraceLength - 0.5) {
-      let length = Math.min(x === 0 ? firstLength : config.boardLength, config.terraceLength - x);
-      const remainder = config.terraceLength - (x + length);
-
-      if (remainder > 0 && remainder < config.minOffcut && length > config.minOffcut + remainder) {
-        length -= config.minOffcut - remainder;
+    for (const length of result.lengths) {
+      if (length < config.minOffcut - 0.5) {
+        return {
+          rows,
+          pieces: [],
+          packed: [],
+          warnings: [{
+            type: "danger",
+            text: `Ve vzoru by vznikl díl o délce ${Math.round(length)} mm, což je méně než minimální odřezek ${Math.round(config.minOffcut)} mm. Uprav délku terasy, délku prkna, opakování vzoru nebo minimální odřezek.`,
+          }],
+          invalidPattern: true,
+        };
       }
+    }
 
+    let x = 0;
+    result.lengths.forEach((length) => {
       pieces.push({
         id: `a-${row.index}-${pieces.length}`,
         row: row.index,
@@ -155,98 +240,24 @@ function createAutoLayout(config) {
         patternIndex,
       });
       x += length;
-    }
-  });
-
-  const shortPieces = pieces.filter((piece) => piece.length < config.minOffcut);
-  if (shortPieces.length) {
-    warnings.push({
-      type: "warning",
-      text: `${shortPieces.length} dílů je kratších než nastavené minimum odřezku.`,
     });
   }
 
   const packed = packBoards(pieces.map((piece) => piece.length), config.boardLength);
-  return { rows, pieces, packed, warnings, effectiveStagger: staggerChoice.stagger };
+  return { rows, pieces, packed, warnings: [], stagger };
 }
 
-function chooseAutoStagger(config, rowCount, maxOffset) {
-  if (rowCount <= 1) {
-    return { stagger: 0 };
-  }
-
-  if (config.patternRows <= 1) {
-    return {
-      error: "Opakování vzoru po 1 řadě by vždy vytvořilo stejné sousední řady. Zvol alespoň 2 řady ve vzoru.",
-    };
-  }
-
-  const requested = Math.min(config.stagger, maxOffset);
-  const recommended = Math.min(config.boardLength / config.patternRows, maxOffset);
-  const candidates = [];
-
-  if (requested > 0) candidates.push({ value: requested, source: "requested" });
-  if (recommended > 0 && Math.abs(recommended - requested) > 0.5) {
-    candidates.push({ value: recommended, source: "recommended" });
-  }
-
-  for (const candidate of candidates) {
-    if (!hasAdjacentDuplicatePattern(config, rowCount, candidate.value)) {
-      if (candidate.source === "recommended" && requested > 0) {
-        return {
-          stagger: candidate.value,
-          warning: `Zadaný posun ${Math.round(requested)} mm vytvářel stejné sousední řady, proto byl pro návrh použit pravidelný posun ${Math.round(candidate.value)} mm.`,
-        };
-      }
-      return { stagger: candidate.value };
-    }
-  }
-
-  return {
-    error: "Pro aktuální délku prkna, minimální odřezek a počet řad ve vzoru nejde vytvořit návrh bez stejných sousedních řad. Změň opakování vzoru nebo posun spár.",
-  };
-}
-
-function hasAdjacentDuplicatePattern(config, rowCount, stagger) {
-  const patterns = Array.from({ length: rowCount }, (_, rowIndex) => {
-    const offset = ((rowIndex % config.patternRows) * stagger) % config.boardLength;
-    return seamPattern(config, offset);
+function computeJoistPositions(config, pieces) {
+  const seamSet = new Set();
+  pieces.forEach((piece) => {
+    if (piece.x > 0.5) seamSet.add(Math.round(piece.x));
   });
 
-  return patterns.some((pattern, index) => {
-    if (index === 0) return false;
-    return patternsEqual(patterns[index - 1], pattern);
-  });
-}
-
-function seamPattern(config, offset) {
-  const seams = [];
-  let x = 0;
-  let firstLength = offset > 0 ? config.boardLength - offset : config.boardLength;
-
-  if (firstLength < config.minOffcut && config.terraceLength > config.minOffcut) {
-    firstLength = Math.min(config.terraceLength, config.minOffcut);
-  }
-
-  while (x < config.terraceLength - 0.5) {
-    let length = Math.min(x === 0 ? firstLength : config.boardLength, config.terraceLength - x);
-    const remainder = config.terraceLength - (x + length);
-
-    if (remainder > 0 && remainder < config.minOffcut && length > config.minOffcut + remainder) {
-      length -= config.minOffcut - remainder;
-    }
-
-    x += length;
-    if (x < config.terraceLength - 0.5) seams.push(Math.round(x));
-  }
-
-  return seams;
-}
-
-function patternsEqual(left, right) {
-  const tolerance = 35;
-  if (left.length !== right.length) return false;
-  return left.every((value, index) => Math.abs(value - right[index]) <= tolerance);
+  const half = Math.round(config.terraceLength / 2);
+  const leftEdge = Math.min(config.joistEdgeOffset, half);
+  const rightEdge = Math.max(config.terraceLength - config.joistEdgeOffset, leftEdge + 1);
+  const all = new Set([leftEdge, ...seamSet, rightEdge]);
+  return Array.from(all).sort((a, b) => a - b);
 }
 
 function packBoards(lengths, stockLength) {
@@ -267,86 +278,6 @@ function packBoards(lengths, stockLength) {
   });
 
   return boards;
-}
-
-function parseManualCuts(config) {
-  return inputs.manualCuts.value
-    .split(/[\s,;]+/)
-    .map((part) => Number(part.trim()))
-    .filter((length) => Number.isFinite(length) && length > 0)
-    .map((length) => Math.min(length, config.boardLength));
-}
-
-function ensureManualPieces(config, forceReset = false) {
-  const signature = [
-    parseManualCuts(config).join(","),
-    config.terraceLength,
-    config.terraceWidth,
-    config.boardWidth,
-    config.gap,
-  ].join("|");
-
-  if (!forceReset && signature === state.lastManualSignature && state.manualPieces.length) {
-    return;
-  }
-
-  const trayX = -config.terraceLength * 0.36;
-  const trayPitch = config.boardWidth + config.gap;
-  state.manualPieces = parseManualCuts(config).map((length, index) => ({
-    id: `m-${Date.now()}-${index}`,
-    length,
-    row: null,
-    x: trayX,
-    trayIndex: index,
-    y: index * trayPitch,
-  }));
-  state.lastManualSignature = signature;
-}
-
-function manualLayout(config) {
-  ensureManualPieces(config);
-  const rows = boardRows(config);
-  const placed = state.manualPieces.filter((piece) => piece.row !== null);
-  const packed = packBoards(state.manualPieces.map((piece) => piece.length), config.boardLength);
-  const warnings = [];
-  const totalPlaced = placed.reduce((sum, piece) => sum + piece.length * config.boardWidth, 0);
-  const terraceArea = config.terraceLength * config.terraceWidth;
-  const covered = terraceArea ? Math.min(100, (totalPlaced / terraceArea) * 100) : 0;
-
-  warnings.push({
-    type: "info",
-    text: `Ručně položené díly pokrývají přibližně ${covered.toFixed(1)} % plochy.`,
-  });
-
-  const overlaps = countManualOverlaps(state.manualPieces, config);
-  if (overlaps > 0) {
-    warnings.push({
-      type: "danger",
-      text: `${overlaps} ručních dílů se překrývá s jiným dílem ve stejné řadě.`,
-    });
-  }
-
-  return { rows, pieces: state.manualPieces, packed, warnings };
-}
-
-function countManualOverlaps(pieces, config) {
-  const byRow = new Map();
-  pieces.forEach((piece) => {
-    if (piece.row === null) return;
-    if (!byRow.has(piece.row)) byRow.set(piece.row, []);
-    byRow.get(piece.row).push(piece);
-  });
-
-  let overlaps = 0;
-  byRow.forEach((rowPieces) => {
-    rowPieces.sort((a, b) => a.x - b.x);
-    for (let index = 1; index < rowPieces.length; index += 1) {
-      const previous = rowPieces[index - 1];
-      const current = rowPieces[index];
-      if (previous.x + previous.length + config.gap > current.x) overlaps += 1;
-    }
-  });
-  return overlaps;
 }
 
 function svgEl(name, attrs = {}) {
@@ -375,30 +306,34 @@ function clearSvg() {
 function render() {
   hideBoardTooltip();
   const config = readConfig();
-  const layout = state.mode === "auto" ? createAutoLayout(config) : manualLayout(config);
-  renderSvg(config, layout);
-  renderSummary(config, layout);
+  const layout = createAutoLayout(config);
+
+  if (layout.invalidPattern) {
+    clearSvg();
+    els.summary.innerHTML = "";
+    els.cutList.innerHTML = "<p class=\"hint\">Návrh nelze sestavit, dokud se nevyřeší chyby v poznámkách.</p>";
+    renderWarnings(config, layout);
+    return;
+  }
+
+  const joistPositions = computeJoistPositions(config, layout.pieces);
+  renderSvg(config, layout, joistPositions);
+  renderSummary(config, layout, joistPositions);
   renderCutList(config, layout.packed);
   renderWarnings(config, layout);
-  updateModeCopy();
 }
 
-function renderSvg(config, layout) {
+function renderSvg(config, layout, joistPositions) {
   clearSvg();
-  const trayWidth = state.mode === "manual" ? config.terraceLength * 0.42 : 0;
   const pad = Math.max(220, config.terraceLength * 0.08);
   const rightDimensionPad = Math.max(pad, 780);
-  const viewWidth = config.terraceLength + pad + rightDimensionPad + trayWidth;
+  const viewWidth = config.terraceLength + pad + rightDimensionPad;
   const viewHeight = config.terraceWidth + pad * 1.6;
   const originX = pad;
   const originY = pad * 0.62;
 
-  els.svg.setAttribute("viewBox", `${-trayWidth} 0 ${viewWidth} ${viewHeight}`);
+  els.svg.setAttribute("viewBox", `0 0 ${viewWidth} ${viewHeight}`);
   renderDimensionDefs();
-
-  if (state.mode === "manual") {
-    renderTray(config, originY);
-  }
 
   els.svg.appendChild(svgEl("rect", {
     class: "deck-outline",
@@ -421,14 +356,77 @@ function renderSvg(config, layout) {
     }
   });
 
-  if (state.mode === "auto") {
-    layout.pieces.forEach((piece) => renderAutoPiece(piece, originX, originY));
-  } else {
-    layout.pieces.forEach((piece) => renderManualPiece(piece, config, originX, originY));
-  }
-
+  renderJoists(config, joistPositions, originX, originY);
+  layout.pieces.forEach((piece) => renderAutoPiece(piece, originX, originY));
   renderFullLastBoardExtension(config, layout, originX, originY);
   renderDimensions(config, originX, originY);
+}
+
+function renderJoists(config, joistPositions, originX, originY) {
+  const group = svgEl("g", { class: "joist-layer" });
+  els.svg.appendChild(group);
+
+  const tickTop = originY - 28;
+  const dimLineY = originY - 72;
+  const dimLabelY = originY - 96;
+
+  const edgeLeft = originX;
+  const edgeRight = originX + config.terraceLength;
+
+  const drawTick = (svgX) => {
+    group.appendChild(svgEl("line", {
+      class: "joist-tick",
+      x1: svgX,
+      y1: tickTop,
+      x2: svgX,
+      y2: originY,
+    }));
+  };
+
+  const drawSpanDim = (fromX, toX) => {
+    const midX = (fromX + toX) / 2;
+    group.appendChild(svgEl("line", {
+      class: "dimension-line joist-dim-line",
+      x1: fromX,
+      y1: dimLineY,
+      x2: toX,
+      y2: dimLineY,
+      "marker-start": "url(#dimensionArrow)",
+      "marker-end": "url(#dimensionArrow)",
+    }));
+    appendDimensionText(group, {
+      label: `${Math.round(toX - fromX)} mm`,
+      x: midX,
+      y: dimLabelY,
+      className: "dimension-label dimension-detail-label",
+    });
+  };
+
+  // Tick + kóta na levém kraji terasy → první hranol
+  drawTick(edgeLeft);
+  drawSpanDim(edgeLeft, originX + joistPositions[0]);
+
+  joistPositions.forEach((x, i) => {
+    const svgX = originX + x;
+
+    group.appendChild(svgEl("line", {
+      class: "joist-line",
+      x1: svgX,
+      y1: originY,
+      x2: svgX,
+      y2: originY + config.terraceWidth,
+    }));
+
+    drawTick(svgX);
+
+    if (i > 0) {
+      drawSpanDim(originX + joistPositions[i - 1], svgX);
+    }
+  });
+
+  // Kóta od posledního hranolu → pravý kraj terasy
+  drawSpanDim(originX + joistPositions[joistPositions.length - 1], edgeRight);
+  drawTick(edgeRight);
 }
 
 function renderDimensionDefs() {
@@ -448,24 +446,6 @@ function renderDimensionDefs() {
   }));
   defs.appendChild(marker);
   els.svg.appendChild(defs);
-}
-
-function renderTray(config, originY) {
-  els.svg.appendChild(svgEl("text", {
-    class: "tray-label",
-    x: -config.terraceLength * 0.36,
-    y: originY - 24,
-  })).textContent = "Zásobník dílů";
-
-  els.svg.appendChild(svgEl("rect", {
-    x: -config.terraceLength * 0.39,
-    y: originY - 8,
-    width: config.terraceLength * 0.34,
-    height: config.terraceWidth + 16,
-    rx: 8,
-    fill: "rgba(244, 247, 251, 0.86)",
-    stroke: "#d8dee8",
-  }));
 }
 
 function renderAutoPiece(piece, originX, originY) {
@@ -508,43 +488,6 @@ function renderAutoPiece(piece, originX, originY) {
     text.textContent = `${Math.round(piece.length)}`;
     els.svg.appendChild(text);
   }
-}
-
-function renderManualPiece(piece, config, originX, originY) {
-  const rows = boardRows(config);
-  const rowY = piece.row === null
-    ? originY + piece.y
-    : originY + rows[piece.row].y;
-  const x = piece.row === null ? piece.x : originX + piece.x;
-  const width = piece.length;
-  const height = piece.row === null ? config.boardWidth : rows[piece.row].width;
-  const position = piece.row === null ? null : {
-    x: piece.x,
-    y: rows[piece.row].y,
-  };
-
-  const group = svgEl("g", {
-    class: `manual-piece${state.drag?.id === piece.id ? " is-dragging" : ""}`,
-    "data-piece-id": piece.id,
-  });
-  group.appendChild(svgEl("rect", {
-    class: "board-piece",
-    ...boardTooltipAttrs(piece, height, piece.row === null ? "" : piece.row + 1, position),
-    x,
-    y: rowY,
-    width,
-    height,
-    rx: 5,
-  }));
-
-  const text = svgEl("text", {
-    class: "piece-label",
-    x: x + Math.max(38, width / 2),
-    y: rowY + height / 2,
-  });
-  text.textContent = `${Math.round(piece.length)}`;
-  group.appendChild(text);
-  els.svg.appendChild(group);
 }
 
 function renderFullLastBoardExtension(config, layout, originX, originY) {
@@ -590,7 +533,6 @@ function renderFullLastBoardExtension(config, layout, originX, originY) {
 }
 
 function boardTooltipTarget(event) {
-  if (state.drag) return null;
   return event.target.closest?.("[data-board-tooltip]");
 }
 
@@ -780,10 +722,8 @@ function appendExtensionLine(parent, x1, y1, x2, y2) {
   }));
 }
 
-function renderSummary(config, layout) {
-  const pieceCount = state.mode === "auto"
-    ? layout.pieces.length
-    : state.manualPieces.length;
+function renderSummary(config, layout, joistPositions) {
+  const pieceCount = layout.pieces.length;
   const used = layout.packed.reduce((sum, board) => sum + board.cuts.reduce((inner, cut) => inner + cut, 0), 0);
   const purchased = layout.packed.length * config.boardLength;
   const waste = Math.max(0, purchased - used);
@@ -793,6 +733,7 @@ function renderSummary(config, layout) {
     ["Skladová prkna", `${layout.packed.length} ks`],
     ["Položené řady", `${layout.rows.length} řad`],
     ["Řezané díly", `${pieceCount} ks`],
+    ["Podkladní hranoly", `${joistPositions.length} ks / ${((joistPositions.length * config.terraceWidth) / 1000).toFixed(2)} m`],
     ["Celkový odpad", `${Math.round(waste)} mm (${purchased ? ((waste / purchased) * 100).toFixed(1) : "0.0"} %)`],
     ["Pokrytá šířka", `${Math.round(Math.min(coverageWidth, config.terraceWidth))} mm`],
   ];
@@ -807,7 +748,6 @@ function renderCutList(config, boards) {
   }
 
   els.cutList.innerHTML = boards.map((board, index) => {
-    const used = board.cuts.reduce((sum, cut) => sum + cut, 0);
     const cuts = board.cuts.map((cut) => {
       const width = Math.max(2, (cut / config.boardLength) * 100);
       return `<span class="stock-cut" style="width:${width}%" title="${cut} mm"></span>`;
@@ -830,39 +770,23 @@ function renderCutList(config, boards) {
 
 function renderWarnings(config, layout) {
   const warnings = [...layout.warnings];
-  const maxRowWidth = layout.rows.reduce((sum, row) => sum + row.width, 0)
-    + Math.max(0, layout.rows.length - 1) * config.gap;
 
-  if (maxRowWidth > config.terraceWidth + 0.5) {
-    warnings.push({
-      type: "info",
-      text: "Poslední řada je zakreslena jako širší díl, který bude potřeba podélně seříznout.",
-    });
-  }
+  if (!layout.invalidPattern) {
+    const maxRowWidth = layout.rows.reduce((sum, row) => sum + row.width, 0)
+      + Math.max(0, layout.rows.length - 1) * config.gap;
 
-  const fullBoardInfo = fullLastBoardInfo(config, layout.rows);
-  if (fullBoardInfo) {
-    warnings.push({
-      type: "info",
-      text: `Poslední řada má šířku ${Math.round(fullBoardInfo.currentLastWidth)} mm. Bez podélného řezu by terasa měla šířku ${Math.round(fullBoardInfo.fullWidth)} mm (+${Math.round(fullBoardInfo.extension)} mm).`,
-    });
-  }
-
-  if (config.stagger >= config.boardLength && state.mode === "auto") {
-    warnings.push({
-      type: "warning",
-      text: "Posun spár je větší než délka prkna, proto je ve výpočtu redukovaný modulo délka prkna.",
-    });
-  }
-
-  if (state.mode === "auto" && !layout.invalidPattern) {
-    const recommended = Math.round(config.boardLength / config.patternRows);
-    const activeStagger = Math.round(layout.effectiveStagger ?? config.stagger);
-    const difference = Math.abs(activeStagger - recommended);
-    if (difference > Math.max(25, recommended * 0.08)) {
+    if (maxRowWidth > config.terraceWidth + 0.5) {
       warnings.push({
         type: "info",
-        text: `Pro pravidelnější vzor zvaž posun kolem ${recommended} mm při ${config.patternRows} řadách ve vzoru.`,
+        text: "Poslední řada je zakreslena jako širší díl, který bude potřeba podélně seříznout.",
+      });
+    }
+
+    const fullBoardInfo = fullLastBoardInfo(config, layout.rows);
+    if (fullBoardInfo) {
+      warnings.push({
+        type: "info",
+        text: `Poslední řada má šířku ${Math.round(fullBoardInfo.currentLastWidth)} mm. Bez podélného řezu by terasa měla šířku ${Math.round(fullBoardInfo.fullWidth)} mm (+${Math.round(fullBoardInfo.extension)} mm).`,
       });
     }
   }
@@ -876,126 +800,13 @@ function renderWarnings(config, layout) {
   )).join("");
 }
 
-function updateModeCopy() {
-  const isAuto = state.mode === "auto";
-  els.viewTitle.textContent = isAuto ? "Automatický návrh" : "Ruční skládání";
-  els.viewSubtitle.textContent = isAuto
-    ? "Změna vstupu okamžitě přepočítá řezný plán i vizualizaci."
-    : "Přetáhni díly ze zásobníku do řad terasy; výsledný počet prken se přepočítá.";
-}
-
-function setMode(mode) {
-  state.mode = mode;
-  const isAuto = mode === "auto";
-  els.autoMode.classList.toggle("is-active", isAuto);
-  els.manualMode.classList.toggle("is-active", !isAuto);
-  els.autoMode.setAttribute("aria-pressed", String(isAuto));
-  els.manualMode.setAttribute("aria-pressed", String(!isAuto));
-  els.autoPanel.classList.toggle("is-hidden", !isAuto);
-  els.manualPanel.classList.toggle("is-hidden", isAuto);
-  render();
-}
-
-function svgPoint(event) {
-  const point = els.svg.createSVGPoint();
-  point.x = event.clientX;
-  point.y = event.clientY;
-  return point.matrixTransform(els.svg.getScreenCTM().inverse());
-}
-
-function findPiece(id) {
-  return state.manualPieces.find((piece) => piece.id === id);
-}
-
-function startDrag(event) {
-  if (state.mode !== "manual") return;
-  const group = event.target.closest(".manual-piece");
-  if (!group) return;
-  const piece = findPiece(group.dataset.pieceId);
-  if (!piece) return;
-
-  const config = readConfig();
-  const pad = Math.max(220, config.terraceLength * 0.08);
-  const originX = pad;
-  const originY = pad * 0.62;
-  const point = svgPoint(event);
-  const pieceX = piece.row === null ? piece.x : originX + piece.x;
-  const pieceY = piece.row === null ? originY + piece.y : originY + boardRows(config)[piece.row].y;
-
-  state.drag = {
-    id: piece.id,
-    dx: point.x - pieceX,
-    dy: point.y - pieceY,
-  };
-  els.svg.setPointerCapture(event.pointerId);
-  render();
-}
-
-function moveDrag(event) {
-  if (!state.drag) return;
-  const config = readConfig();
-  const piece = findPiece(state.drag.id);
-  if (!piece) return;
-
-  const point = svgPoint(event);
-  const trayX = -config.terraceLength * 0.36;
-  const pad = Math.max(220, config.terraceLength * 0.08);
-  const originX = pad;
-  const originY = pad * 0.62;
-
-  const localDeckX = point.x - originX - state.drag.dx;
-  const localDeckY = point.y - originY - state.drag.dy;
-  const insideDeck = point.x >= originX
-    && point.x <= originX + config.terraceLength
-    && point.y >= originY
-    && point.y <= originY + config.terraceWidth;
-
-  if (insideDeck) {
-    const rows = boardRows(config);
-    const nearest = rows.reduce((best, row) => {
-      const distance = Math.abs(localDeckY - row.y);
-      return distance < best.distance ? { row, distance } : best;
-    }, { row: rows[0], distance: Infinity }).row;
-
-    piece.row = nearest.index;
-    piece.x = Math.max(0, Math.min(config.terraceLength - piece.length, localDeckX));
-  } else {
-    piece.row = null;
-    piece.x = trayX;
-    piece.y = Math.max(0, point.y - originY - state.drag.dy);
-  }
-
-  render();
-}
-
-function endDrag(event) {
-  if (!state.drag) return;
-  try {
-    els.svg.releasePointerCapture(event.pointerId);
-  } catch {
-    // Pointer capture may already be released by the browser.
-  }
-  state.drag = null;
-  render();
-}
-
-function resetManual() {
-  ensureManualPieces(readConfig(), true);
-  render();
-}
-
 Object.values(inputs).forEach((input) => {
   input.addEventListener("input", () => {
-    if (input === inputs.manualCuts) state.lastManualSignature = "";
+    scheduleSave();
     render();
   });
 });
 
-els.autoMode.addEventListener("click", () => setMode("auto"));
-els.manualMode.addEventListener("click", () => setMode("manual"));
-els.resetManual.addEventListener("click", resetManual);
-els.svg.addEventListener("pointerdown", startDrag);
-els.svg.addEventListener("pointermove", moveDrag);
 els.svg.addEventListener("pointerover", showBoardTooltip);
 els.svg.addEventListener("pointermove", moveBoardTooltip);
 els.svg.addEventListener("pointerout", (event) => {
@@ -1013,8 +824,7 @@ els.svg.addEventListener("mouseout", (event) => {
   }
 });
 els.svg.addEventListener("mouseleave", hideBoardTooltip);
-els.svg.addEventListener("pointerup", endDrag);
-els.svg.addEventListener("pointercancel", endDrag);
 
+applyConfig(loadConfig());
 setupTooltips();
 render();

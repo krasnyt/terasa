@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Plánovač pokládky terasy</title>
-    <link rel="stylesheet" href="styles.css?v=15" />
+    <link rel="stylesheet" href="styles.css?v=21" />
   </head>
   <body>
     <main class="app-shell">
@@ -26,7 +26,7 @@
                 <button class="help-dot" type="button" aria-label="Nápověda k délce terasy" data-tooltip="Celkový rozměr terasy ve směru pokládky prken. Aplikace podle něj určuje délky jednotlivých dílů.">?</button>
               </span>
               <span class="input-unit">
-                <input id="terraceLength" type="number" min="500" step="50" value="5000" />
+                <input id="terraceLength" type="number" min="500" step="50" />
                 <span>mm</span>
               </span>
             </label>
@@ -36,7 +36,7 @@
                 <button class="help-dot" type="button" aria-label="Nápověda k šířce terasy" data-tooltip="Rozměr napříč prkny. Z této hodnoty se vypočítá počet řad prken.">?</button>
               </span>
               <span class="input-unit">
-                <input id="terraceWidth" type="number" min="300" step="50" value="2150" />
+                <input id="terraceWidth" type="number" min="300" step="50" />
                 <span>mm</span>
               </span>
             </label>
@@ -46,7 +46,7 @@
                 <button class="help-dot" type="button" aria-label="Nápověda k délce prkna" data-tooltip="Délka jednoho koupeného prkna před řezáním. Z ní se skládá řezný plán a počet kusů k nákupu.">?</button>
               </span>
               <span class="input-unit">
-                <input id="boardLength" type="number" min="500" step="50" value="2300" />
+                <input id="boardLength" type="number" min="500" step="50" />
                 <span>mm</span>
               </span>
             </label>
@@ -56,7 +56,7 @@
                 <button class="help-dot" type="button" aria-label="Nápověda k šířce prkna" data-tooltip="Pohledová šířka jednoho prkna. Společně s mezerou určuje rozteč a počet řad.">?</button>
               </span>
               <span class="input-unit">
-                <input id="boardWidth" type="number" min="40" step="5" value="178" />
+                <input id="boardWidth" type="number" min="40" step="5" />
                 <span>mm</span>
               </span>
             </label>
@@ -66,7 +66,7 @@
                 <button class="help-dot" type="button" aria-label="Nápověda k mezeře" data-tooltip="Vzdálenost mezi sousedními prkny. Započítává se mezi řadami v celé šířce terasy.">?</button>
               </span>
               <span class="input-unit">
-                <input id="gap" type="number" min="0" step="1" value="6" />
+                <input id="gap" type="number" min="0" step="1" />
                 <span>mm</span>
               </span>
             </label>
@@ -76,7 +76,7 @@
                 <button class="help-dot" type="button" aria-label="Nápověda k minimálnímu odřezku" data-tooltip="Nejkratší díl, který je ještě vhodné použít. Automat se snaží nevytvářet kratší kusy.">?</button>
               </span>
               <span class="input-unit">
-                <input id="minOffcut" type="number" min="0" step="10" value="250" />
+                <input id="minOffcut" type="number" min="0" step="10" />
                 <span>mm</span>
               </span>
             </label>
@@ -84,45 +84,28 @@
         </section>
 
         <section class="panel">
-          <h2>Režim návrhu</h2>
-          <div class="segmented" role="tablist" aria-label="Režim návrhu">
-            <button id="autoMode" class="is-active" type="button" aria-pressed="true">Automat</button>
-            <button id="manualMode" type="button" aria-pressed="false">Ručně</button>
-          </div>
-
-          <div id="autoPanel" class="mode-panel">
-            <label>
-              <span class="label-row">
-                Posun spár mezi řadami
-                <button class="help-dot" type="button" aria-label="Nápověda k posunu spár" data-tooltip="O kolik se má začátek řezu posunout v další řadě. Pro klidný vzor se hodí přibližně délka prkna dělená počtem řad ve vzoru.">?</button>
-              </span>
-              <span class="input-unit">
-                <input id="stagger" type="number" min="0" step="1" value="767" />
-                <span>mm</span>
-              </span>
-            </label>
+          <h2>Vzor pokládky</h2>
+          <div class="mode-panel">
             <label>
               <span class="label-row">
                 Opakování vzoru
-                <button class="help-dot" type="button" aria-label="Nápověda k opakování vzoru" data-tooltip="Po kolika řadách se má vzor posunu spár opakovat. Menší číslo je pravidelnější, větší působí pestřeji.">?</button>
+                <button class="help-dot" type="button" aria-label="Nápověda k opakování vzoru" data-tooltip="Po kolika řadách se má vzor spár opakovat. Posun spár se dopočítá tak, aby byl vzor pravidelný a odpad co nejmenší.">?</button>
               </span>
               <span class="input-unit">
-                <input id="patternRows" type="number" min="1" max="12" step="1" value="3" />
+                <input id="patternRows" type="number" min="2" max="12" step="1" />
                 <span>řad</span>
               </span>
             </label>
-          </div>
-
-          <div id="manualPanel" class="mode-panel is-hidden">
             <label>
               <span class="label-row">
-                Délky dílů pro ruční skládání
-                <button class="help-dot" type="button" aria-label="Nápověda k ručním dílům" data-tooltip="Seznam délek dílů v milimetrech. Každé číslo vytvoří jeden kus, který můžeš ručně přetáhnout do výkresu.">?</button>
+                Odsazení krajních hranolovníků
+                <button class="help-dot" type="button" aria-label="Nápověda k odsazení krajních hranolovníků" data-tooltip="Vzdálenost prvního a posledního hranolovníku od kraje terasy.">?</button>
               </span>
-              <textarea id="manualCuts" rows="4">2400, 1800, 1200, 900, 900</textarea>
+              <span class="input-unit">
+                <input id="joistEdgeOffset" type="number" min="0" step="10" />
+                <span>mm</span>
+              </span>
             </label>
-            <p class="hint">Zadávej délky v mm oddělené čárkou, mezerou nebo novým řádkem. Díly přetáhni do výkresu.</p>
-            <button id="resetManual" class="secondary-action" type="button">Vrátit díly do zásobníku</button>
           </div>
         </section>
 
@@ -135,8 +118,8 @@
       <section class="workspace" aria-label="Výkres terasy">
         <header class="workspace-header">
           <div>
-            <h2 id="viewTitle">Automatický návrh</h2>
-            <p id="viewSubtitle">Změna vstupu okamžitě přepočítá řezný plán i vizualizaci.</p>
+            <h2>Návrh pokládky</h2>
+            <p>Změna vstupu okamžitě přepočítá řezný plán i vizualizaci.</p>
           </div>
           <div class="legend">
             <span><i class="legend-board"></i> prkno</span>
@@ -163,6 +146,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=23" defer></script>
+    <script src="app.js?v=31" defer></script>
   </body>
 </html>
