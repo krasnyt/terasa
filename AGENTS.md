@@ -47,6 +47,7 @@ Aplikace nabízí tři režimy přepínatelné segmentovaným tlačítkem „Aut
 - Uživatel přetáhne prkna z palety nad výkresem na požadovanou pozici a řadu. Délku kusu určuje vstup „Délka" v paletě — výchozí hodnota je délka skladového prkna, lze zadat libovolný kratší řez. Popisek chipu se aktualizuje živě.
 - **Snap:** Při přetahování se prkno automaticky přichytí k nejbližší hraně sousedního prkna (s mezerou) nebo k okraji terasy, pokud je kurzor blíže než ~22 px v SVG souřadnicích.
 - Přetažením lze i přesouvat již umístěná prkna.
+- **Změna velikosti:** Uchopením levého nebo pravého kraje prkna (do ~22 px od okraje v SVG souřadnicích) lze prkno zmenšit nebo zvětšit. Minimum = min. odřezek, maximum = délka skladového prkna. Kurzor se při přiblížení ke kraji změní na `ew-resize`. Během tažení se zobrazuje tooltip s aktuální délkou.
 - Kliknutí (pohyb < 8 px) na umístěné prkno ho odebere.
 - **Přesah:** Prkno, které přesahuje mimo rozměry terasy, je zvýrazněno červeným okrajem a přesahující část je překryta červeným poloprůsvitným pruhem s popiskem (např. `+230 mm`). Varování na přesahy jsou také v sekci Poznámky.
 - Ručně umístěná prkna se ukládají do localStorage.

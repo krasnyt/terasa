@@ -1150,8 +1150,57 @@ function clearSvgPreview() {
   document.getElementById("manualPreviewRect")?.remove();
 }
 
+function showResizeTooltip(e, length) {
+  const row = document.createElement("div");
+  row.className = "board-tooltip-row";
+  const lbl = document.createElement("span");
+  lbl.className = "board-tooltip-label";
+  lbl.textContent = "Délka";
+  const val = document.createElement("strong");
+  val.className = "board-tooltip-value";
+  val.textContent = `${Math.round(length)} mm`;
+  row.append(lbl, val);
+  els.boardTooltip.replaceChildren(row);
+  els.boardTooltip.classList.add("is-visible");
+  const vpPad = 12;
+  const offset = 14;
+  const tRect = els.boardTooltip.getBoundingClientRect();
+  let left = e.clientX + offset;
+  let top = e.clientY - tRect.height - offset;
+  if (left + tRect.width + vpPad > window.innerWidth) left = e.clientX - tRect.width - offset;
+  if (top < vpPad) top = e.clientY + offset;
+  els.boardTooltip.style.left = `${Math.max(vpPad, left)}px`;
+  els.boardTooltip.style.top = `${Math.max(vpPad, top)}px`;
+}
+
+function handleResizeMove(e) {
+  const config = readConfig();
+  const piece = state.manualPieces.find((p) => p.id === dragState.pieceId);
+  if (!piece) return;
+  const data = clientToSvgData(e.clientX, e.clientY);
+  if (!data) return;
+
+  if (dragState.type === "resize-right") {
+    piece.length = Math.max(config.minOffcut, Math.min(config.boardLength, data.x - piece.x));
+  } else {
+    const fixedRight = dragState.originalX + dragState.originalLength;
+    const newLen = Math.max(config.minOffcut, Math.min(config.boardLength, fixedRight - data.x));
+    piece.x = fixedRight - newLen;
+    piece.length = newLen;
+  }
+
+  showResizeTooltip(e, piece.length);
+  renderManualSvg(config);
+}
+
 function onDragMove(e) {
   if (!dragState) return;
+
+  if (dragState.type === "resize-right" || dragState.type === "resize-left") {
+    handleResizeMove(e);
+    return;
+  }
+
   const config = readConfig();
   const rows = boardRows(config);
   const data = clientToSvgData(e.clientX, e.clientY);
@@ -1176,6 +1225,15 @@ function onDragEnd(e) {
   const moved = pointerDownInfo
     ? Math.hypot(e.clientX - pointerDownInfo.x, e.clientY - pointerDownInfo.y)
     : 999;
+
+  if (dragState?.type === "resize-right" || dragState?.type === "resize-left") {
+    hideBoardTooltip();
+    scheduleSave();
+    render();
+    dragState = null;
+    pointerDownInfo = null;
+    return;
+  }
 
   if (dragState?.type === "move" && moved < 8) {
     state.manualPieces = state.manualPieces.filter((p) => p.id !== dragState.pieceId);
@@ -1241,6 +1299,24 @@ function startPieceDrag(e, pieceId) {
   document.addEventListener("pointerup", onDragEnd);
 }
 
+function startResizeDrag(e, pieceId, side) {
+  e.preventDefault();
+  const piece = state.manualPieces.find((p) => p.id === pieceId);
+  if (!piece) return;
+  dragState = {
+    type: `resize-${side}`,
+    pieceId,
+    originalX: piece.x,
+    originalLength: piece.length,
+    previewX: null,
+    previewRow: null,
+  };
+  els.svg.style.cursor = "ew-resize";
+  pointerDownInfo = { x: e.clientX, y: e.clientY };
+  document.addEventListener("pointermove", onDragMove);
+  document.addEventListener("pointerup", onDragEnd);
+}
+
 // ── Event listeners ──────────────────────────────────────────────────────────
 
 Object.values(inputs).forEach((input) => {
@@ -1266,11 +1342,40 @@ els.svg.addEventListener("pointerdown", (e) => {
   if (state.layoutMode !== "manual") return;
   const target = e.target.closest("[data-manual-piece-id]");
   if (!target) return;
-  startPieceDrag(e, target.dataset.manualPieceId);
+  const pieceId = target.dataset.manualPieceId;
+  const piece = state.manualPieces.find((p) => p.id === pieceId);
+  if (!piece) return;
+  const data = clientToSvgData(e.clientX, e.clientY);
+  if (!data) { startPieceDrag(e, pieceId); return; }
+  const thr = getSnapThresholdMm();
+  const distLeft = Math.abs(data.x - piece.x);
+  const distRight = Math.abs(data.x - (piece.x + piece.length));
+  if (distLeft < thr && distLeft <= distRight) {
+    startResizeDrag(e, pieceId, "left");
+  } else if (distRight < thr) {
+    startResizeDrag(e, pieceId, "right");
+  } else {
+    startPieceDrag(e, pieceId);
+  }
 });
 
 els.svg.addEventListener("pointerover", showBoardTooltip);
-els.svg.addEventListener("pointermove", (e) => { moveBoardTooltip(e); });
+els.svg.addEventListener("pointermove", (e) => {
+  moveBoardTooltip(e);
+  if (state.layoutMode !== "manual" || dragState) return;
+  const data = clientToSvgData(e.clientX, e.clientY);
+  if (!data) return;
+  const thr = getSnapThresholdMm();
+  let cursor = "";
+  for (const piece of state.manualPieces) {
+    if (data.y < piece.y || data.y > piece.y + piece.width) continue;
+    const dL = Math.abs(data.x - piece.x);
+    const dR = Math.abs(data.x - (piece.x + piece.length));
+    if (dL < thr || dR < thr) { cursor = "ew-resize"; break; }
+    if (data.x > piece.x && data.x < piece.x + piece.length) cursor = "grab";
+  }
+  els.svg.style.cursor = cursor;
+});
 els.svg.addEventListener("pointerout", (event) => {
   if (!event.relatedTarget || !event.relatedTarget.closest?.("[data-board-tooltip]")) {
     hideBoardTooltip();
