@@ -90,6 +90,20 @@ function boardRows(config) {
   }).filter((row) => row.width > 0);
 }
 
+function fullLastBoardInfo(config, rows) {
+  const lastRow = rows.at(-1);
+  if (!lastRow) return null;
+
+  const extension = config.boardWidth - lastRow.width;
+  if (extension <= 0.5) return null;
+
+  return {
+    extension,
+    fullWidth: lastRow.y + config.boardWidth,
+    currentLastWidth: lastRow.width,
+  };
+}
+
 function createAutoLayout(config) {
   const rows = boardRows(config);
   const pieces = [];
@@ -413,6 +427,7 @@ function renderSvg(config, layout) {
     layout.pieces.forEach((piece) => renderManualPiece(piece, config, originX, originY));
   }
 
+  renderFullLastBoardExtension(config, layout, originX, originY);
   renderDimensions(config, originX, originY);
 }
 
@@ -530,6 +545,48 @@ function renderManualPiece(piece, config, originX, originY) {
   text.textContent = `${Math.round(piece.length)}`;
   group.appendChild(text);
   els.svg.appendChild(group);
+}
+
+function renderFullLastBoardExtension(config, layout, originX, originY) {
+  const info = fullLastBoardInfo(config, layout.rows);
+  if (!info) return;
+
+  const deckBottomY = originY + config.terraceWidth;
+  const fullBottomY = originY + info.fullWidth;
+  const rightX = originX + config.terraceLength + 96;
+
+  els.svg.appendChild(svgEl("rect", {
+    class: "full-board-extension",
+    x: originX,
+    y: deckBottomY,
+    width: config.terraceLength,
+    height: info.extension,
+  }));
+  els.svg.appendChild(svgEl("line", {
+    class: "full-board-extension-edge",
+    x1: originX,
+    y1: fullBottomY,
+    x2: originX + config.terraceLength,
+    y2: fullBottomY,
+  }));
+  els.svg.appendChild(svgEl("line", {
+    class: "full-board-extension-bracket",
+    x1: rightX,
+    y1: deckBottomY,
+    x2: rightX,
+    y2: fullBottomY,
+    "marker-start": "url(#dimensionArrow)",
+    "marker-end": "url(#dimensionArrow)",
+  }));
+
+  const label = svgEl("text", {
+    class: "dimension-label dimension-detail-label full-board-extension-label",
+    x: rightX + 42,
+    y: deckBottomY + info.extension / 2 + 16,
+    "text-anchor": "start",
+  });
+  label.textContent = `bez podélného řezu +${Math.round(info.extension)} mm`;
+  els.svg.appendChild(label);
 }
 
 function boardTooltipTarget(event) {
@@ -780,6 +837,14 @@ function renderWarnings(config, layout) {
     warnings.push({
       type: "info",
       text: "Poslední řada je zakreslena jako širší díl, který bude potřeba podélně seříznout.",
+    });
+  }
+
+  const fullBoardInfo = fullLastBoardInfo(config, layout.rows);
+  if (fullBoardInfo) {
+    warnings.push({
+      type: "info",
+      text: `Poslední řada má šířku ${Math.round(fullBoardInfo.currentLastWidth)} mm. Bez podélného řezu by terasa měla šířku ${Math.round(fullBoardInfo.fullWidth)} mm (+${Math.round(fullBoardInfo.extension)} mm).`,
     });
   }
 

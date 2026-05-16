@@ -52,6 +52,7 @@ Tento soubor je průběžný popis funkcí aplikace. Při každém přidání, z
 - Výkres obsahuje kóty délky a šířky terasy.
 - Výkres obsahuje detailní kóty šířky prkna a mezery.
 - Kóty jsou umístěné mimo samotnou plochu pokládky, aby nepřekrývaly prkna.
+- Pokud je poslední řada užší než celé prkno, výkres ukáže průsvitný pás s informací, o kolik by se terasa musela rozšířit, aby poslední prkno nebylo nutné podélně řezat.
 - Při hoveru nebo kliknutí na díl prkna se zobrazí tooltip.
 - Tooltip prkna má pevnou strukturu a šířku, aby údaje při přejíždění mezi prkny neodskakovaly.
 - Tooltip prkna zobrazuje rozměr dílu, pozici levého horního rohu `[x;y]` vůči levému hornímu rohu terasy a číslo řady.
@@ -67,6 +68,7 @@ Tento soubor je průběžný popis funkcí aplikace. Při každém přidání, z
 - V řezném plánu má každé skladové prkno stejnou vizuální délku.
 - Řezný plán ukazuje jednotlivé řezy a odpad pro každé skladové prkno.
 - Poznámky a varování upozorňují na konflikty nebo doporučení v návrhu.
+- Poznámky uvádějí aktuální šířku poslední řady a doporučenou šířku terasy bez podélného řezu posledního prkna.
 
 ## Technické chování
 
