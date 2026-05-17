@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Plánovač pokládky terasy</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-    <link rel="stylesheet" href="styles.css?v=38" />
+    <link rel="stylesheet" href="styles.css?v=41" />
   </head>
   <body>
     <main class="app-shell">
@@ -92,6 +92,7 @@
               <button id="optimalLayoutBtn" type="button">Ideální</button>
               <button id="manualLayoutBtn" type="button">Ručně</button>
             </div>
+            <button id="transferToManualBtn" class="secondary-action-btn" type="button">Přenést aktuální návrh do ručního režimu</button>
             <div id="manualLayoutPanel" class="is-hidden">
               <p class="hint">Zadej řady do textového pole, nebo přetáhni prkna z palety nad výkresem.</p>
             </div>
@@ -130,6 +131,20 @@
               </span>
             </label>
           </div>
+        </section>
+
+        <section class="panel cutouts-panel">
+          <details id="cutoutsDetails">
+            <summary class="panel-title-row">
+              <span class="cutouts-summary-title">
+                <span>Zářezy</span>
+                <span id="cutoutsCount" class="panel-count">0 ks</span>
+              </span>
+              <button id="addCutoutBtn" class="small-action-btn" type="button">Přidat</button>
+            </summary>
+            <p class="hint">Zadej výklenky u oken nebo dveří zvenku od hrany terasy. Hranoly se v jejich šířce prodlouží mimo základní obdélník.</p>
+            <div id="cutoutsList" class="cutouts-list"></div>
+          </details>
         </section>
 
         <section class="panel summary-panel">
@@ -190,6 +205,6 @@
       </section>
     </main>
 
-    <script type="module" src="app.js?v=51"></script>
+    <script type="module" src="app.js?v=57"></script>
   </body>
 </html>

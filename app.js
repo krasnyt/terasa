@@ -1,19 +1,19 @@
 "use strict";
 
-import { applyConfig, loadConfig, readConfig, STORAGE_KEY } from "./config.js";
+import { applyConfig, loadConfig, readConfig, STORAGE_KEY } from "./config.js?v=2";
 import {
   boardRows,
-  computeJoistPositions,
+  computeJoistLayout,
   computeOptimalLayout,
   createAutoLayout,
   packBoards,
-} from "./layout.js";
+} from "./layout.js?v=2";
 import { createManualController } from "./manual.js";
-import { createRenderer } from "./render.js?v=2";
+import { createRenderer } from "./render.js?v=5";
 
 const qs = (selector) => document.querySelector(selector);
 
-const state = { layoutMode: "auto", manualPieces: [] };
+const state = { layoutMode: "auto", manualPieces: [], cutouts: [] };
 const svgOrigin = { x: 0, y: 0 };
 
 const inputs = {
@@ -37,6 +37,7 @@ const els = {
   autoLayoutBtn: qs("#autoLayoutBtn"),
   optimalLayoutBtn: qs("#optimalLayoutBtn"),
   manualLayoutBtn: qs("#manualLayoutBtn"),
+  transferToManualBtn: qs("#transferToManualBtn"),
   autoLayoutPanel: qs("#autoLayoutPanel"),
   optimalLayoutPanel: qs("#optimalLayoutPanel"),
   manualLayoutPanel: qs("#manualLayoutPanel"),
@@ -44,6 +45,10 @@ const els = {
   paletteBoardChip: qs("#paletteBoardChip"),
   manualPieceLength: qs("#manualPieceLength"),
   manualLayoutText: qs("#manualLayoutText"),
+  cutoutsDetails: qs("#cutoutsDetails"),
+  cutoutsCount: qs("#cutoutsCount"),
+  addCutoutBtn: qs("#addCutoutBtn"),
+  cutoutsList: qs("#cutoutsList"),
   pdfExportBtn: qs("#pdfExportBtn"),
 };
 
@@ -59,7 +64,12 @@ function scheduleSave() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...readCurrentConfig(), layoutMode: state.layoutMode, manualPieces: state.manualPieces }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        ...readCurrentConfig(),
+        layoutMode: state.layoutMode,
+        manualPieces: state.manualPieces,
+        cutouts: state.cutouts,
+      }));
     } catch {
       // localStorage nedostupný (soukromé prohlížení apod.)
     }
@@ -97,17 +107,124 @@ function setupTooltips() {
   });
 }
 
-function setLayoutMode(mode) {
+function setLayoutMode(mode, options = {}) {
   state.layoutMode = mode;
   els.autoLayoutBtn.classList.toggle("is-active", mode === "auto");
   els.optimalLayoutBtn.classList.toggle("is-active", mode === "optimal");
   els.manualLayoutBtn.classList.toggle("is-active", mode === "manual");
+  els.transferToManualBtn.classList.toggle("is-hidden", mode === "manual");
   els.autoLayoutPanel.classList.toggle("is-hidden", mode !== "auto");
   els.optimalLayoutPanel.classList.toggle("is-hidden", mode !== "optimal");
   els.manualLayoutPanel.classList.toggle("is-hidden", mode !== "manual");
   els.manualPalette.classList.toggle("is-hidden", mode !== "manual");
   document.body.classList.toggle("is-manual-mode", mode === "manual");
   if (mode === "manual") manualController.syncManualTextFromPieces();
+  if (options.save !== false) scheduleSave();
+  render();
+}
+
+function computeCurrentGeneratedLayout(config) {
+  if (state.layoutMode === "manual") return null;
+  return state.layoutMode === "optimal"
+    ? computeOptimalLayout(config)
+    : createAutoLayout(config);
+}
+
+function transferCurrentLayoutToManual() {
+  const config = readCurrentConfig();
+  const layout = computeCurrentGeneratedLayout(config);
+  if (!layout || layout.invalidPattern) return;
+
+  state.manualPieces = layout.pieces.map((piece, index) => ({
+    id: `m-copy-${Date.now()}-${index}`,
+    row: piece.row,
+    x: piece.x,
+    y: piece.y,
+    length: piece.length,
+    width: piece.width,
+    patternIndex: piece.patternIndex,
+  }));
+  setLayoutMode("manual");
+}
+
+function createCutout() {
+  const config = readCurrentConfig();
+  return {
+    id: `c-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+    label: "Okno / dveře",
+    edge: "top",
+    x: Math.round(config.terraceLength * 0.25),
+    width: Math.round(config.terraceLength * 0.35),
+    depth: Math.min(300, Math.round(config.terraceWidth * 0.25)),
+  };
+}
+
+function renderCutoutControls() {
+  if (!els.cutoutsList) return;
+  if (els.cutoutsCount) els.cutoutsCount.textContent = `${state.cutouts.length} ks`;
+  if (!state.cutouts.length) {
+    els.cutoutsList.innerHTML = "<p class=\"hint\">Zatím není zadaný žádný zářez.</p>";
+    return;
+  }
+
+  els.cutoutsList.innerHTML = state.cutouts.map((cutout) => `
+    <div class="cutout-card" data-cutout-id="${escapeHtml(cutout.id)}">
+      <div class="cutout-card-header">
+        <label>
+          Název
+          <input data-cutout-field="label" type="text" value="${escapeHtml(cutout.label || "")}" />
+        </label>
+        <button class="cutout-remove-btn" data-cutout-remove="${escapeHtml(cutout.id)}" type="button" aria-label="Odebrat zářez">×</button>
+      </div>
+      <div class="cutout-grid">
+        <label>
+          Strana
+          <span class="input-unit">
+            <select data-cutout-field="edge">
+              <option value="top"${cutout.edge !== "bottom" ? " selected" : ""}>Horní</option>
+              <option value="bottom"${cutout.edge === "bottom" ? " selected" : ""}>Dolní</option>
+            </select>
+          </span>
+        </label>
+        <label>
+          Od levého kraje
+          <span class="input-unit">
+            <input data-cutout-field="x" type="number" min="0" step="10" value="${Math.round(Number(cutout.x) || 0)}" />
+            <span>mm</span>
+          </span>
+        </label>
+        <label>
+          Šířka
+          <span class="input-unit">
+            <input data-cutout-field="width" type="number" min="0" step="10" value="${Math.round(Number(cutout.width) || 0)}" />
+            <span>mm</span>
+          </span>
+        </label>
+        <label>
+          Hloubka
+          <span class="hint">ven od hrany</span>
+          <span class="input-unit">
+            <input data-cutout-field="depth" type="number" min="0" step="10" value="${Math.round(Number(cutout.depth) || 0)}" />
+            <span>mm</span>
+          </span>
+        </label>
+      </div>
+    </div>
+  `).join("");
+}
+
+function updateCutoutFromControl(target) {
+  const card = target.closest(".cutout-card");
+  if (!card) return;
+  const cutout = state.cutouts.find((item) => item.id === card.dataset.cutoutId);
+  if (!cutout) return;
+  const field = target.dataset.cutoutField;
+  if (!field) return;
+  if (field === "label" || field === "edge") {
+    cutout[field] = target.value;
+  } else {
+    cutout[field] = Math.max(0, Number(target.value) || 0);
+  }
   scheduleSave();
   render();
 }
@@ -125,18 +242,17 @@ function render() {
     renderer.renderManualSvg(config);
     const rows = boardRows(config);
     const packed = packBoards(state.manualPieces.map((p) => p.length), config.boardLength);
-    const joistPositions = computeJoistPositions(config, state.manualPieces);
-    renderer.renderSummary(config, { rows, pieces: state.manualPieces, packed }, joistPositions);
+    const joistLayout = computeJoistLayout(config, state.manualPieces, state.cutouts);
+    renderer.renderSummary(config, { rows, pieces: state.manualPieces, packed }, joistLayout);
     renderer.renderCutList(config, packed);
     renderer.renderManualWarnings(config, rows);
     return;
   }
 
-  const layout = state.layoutMode === "optimal"
-    ? computeOptimalLayout(config)
-    : createAutoLayout(config);
+  const layout = computeCurrentGeneratedLayout(config);
 
   if (layout.invalidPattern) {
+    els.transferToManualBtn.disabled = true;
     renderer.clearSvg();
     els.summary.innerHTML = "";
     els.cutList.innerHTML = "<p class=\"hint\">Návrh nelze sestavit, dokud se nevyřeší chyby v poznámkách.</p>";
@@ -144,9 +260,10 @@ function render() {
     return;
   }
 
-  const joistPositions = computeJoistPositions(config, layout.pieces);
-  renderer.renderSvg(config, layout, joistPositions);
-  renderer.renderSummary(config, layout, joistPositions);
+  els.transferToManualBtn.disabled = false;
+  const joistLayout = computeJoistLayout(config, layout.pieces, state.cutouts);
+  renderer.renderSvg(config, layout, joistLayout);
+  renderer.renderSummary(config, layout, joistLayout);
   renderer.renderCutList(config, layout.packed);
   renderer.renderWarnings(config, layout);
 }
@@ -179,6 +296,7 @@ function configRows(config) {
 
   if (state.layoutMode === "auto") rows.push(["Opakování vzoru", `${Math.round(config.patternRows)} řad`]);
   if (state.layoutMode === "optimal") rows.push(["Max. rozteč hranolů", `${Math.round(config.maxJoistSpacing)} mm`]);
+  if (state.cutouts.length) rows.push(["Zářezy", `${state.cutouts.length} ks`]);
   return rows;
 }
 
@@ -347,15 +465,39 @@ function bindEvents() {
   els.autoLayoutBtn.addEventListener("click", () => setLayoutMode("auto"));
   els.optimalLayoutBtn.addEventListener("click", () => setLayoutMode("optimal"));
   els.manualLayoutBtn.addEventListener("click", () => setLayoutMode("manual"));
+  els.transferToManualBtn.addEventListener("click", transferCurrentLayoutToManual);
   els.pdfExportBtn.addEventListener("click", exportPdf);
+  els.addCutoutBtn.addEventListener("click", () => {
+    state.cutouts.push(createCutout());
+    els.cutoutsDetails.open = true;
+    renderCutoutControls();
+    scheduleSave();
+    render();
+  });
+  els.cutoutsList.addEventListener("input", (event) => {
+    if (event.target.matches("[data-cutout-field]")) updateCutoutFromControl(event.target);
+  });
+  els.cutoutsList.addEventListener("change", (event) => {
+    if (event.target.matches("[data-cutout-field]")) updateCutoutFromControl(event.target);
+  });
+  els.cutoutsList.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-cutout-remove]");
+    if (!button) return;
+    state.cutouts = state.cutouts.filter((cutout) => cutout.id !== button.dataset.cutoutRemove);
+    renderCutoutControls();
+    scheduleSave();
+    render();
+  });
   manualController.bindEvents();
 }
 
 const savedConfig = loadConfig();
 applyConfig(inputs, savedConfig);
 state.manualPieces = Array.isArray(savedConfig.manualPieces) ? savedConfig.manualPieces : [];
+state.cutouts = Array.isArray(savedConfig.cutouts) ? savedConfig.cutouts : [];
+renderCutoutControls();
 setupTooltips();
 bindEvents();
 
 const initialMode = ["auto", "optimal", "manual"].includes(savedConfig.layoutMode) ? savedConfig.layoutMode : "auto";
-setLayoutMode(initialMode);
+setLayoutMode(initialMode, { save: false });

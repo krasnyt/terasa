@@ -23,10 +23,14 @@ Tento soubor je průběžný popis funkcí aplikace. Při každém přidání, z
 - Maximální rozteč sousedních hranolů v milimetrech (pouze v režimu Ideální, výchozí 1000 mm).
 - Odsazení krajních hranolovníků od okraje terasy v milimetrech.
 - U všech vstupů je ikona nápovědy s vysvětlivkou při hoveru, focusu nebo kliknutí.
+- Volitelné obdélníkové zářezy/výklenky u okrajů terasy pro místa u oken nebo dveří. Každý zářez má název, stranu (horní/dolní), vzdálenost od levého kraje, šířku a hloubku v milimetrech. Hloubka se zadává směrem ven od základního obdélníku terasy.
+- Panel „Zářezy" je sbalitelný. Ve sbaleném stavu ukazuje počet zadaných zářezů a tlačítko pro přidání, aby panel „Výstup" zůstával v levém sloupci rychle dostupný.
 
 ## Návrh pokládky
 
 Aplikace nabízí tři režimy přepínatelné segmentovaným tlačítkem „Automat" / „Ideální" / „Ručně" v panelu „Vzor pokládky".
+
+- V režimech Automat a Ideální je dostupné tlačítko „Přenést aktuální návrh do ručního režimu". Tlačítko zkopíruje právě spočítané díly do ručního režimu, nahradí dosavadní ručně umístěná prkna a přepne aplikaci do režimu Ručně. Pokud aktuální automatický návrh nejde sestavit, tlačítko je vypnuté.
 
 ### Automat
 
@@ -72,12 +76,13 @@ Aplikace nabízí tři režimy přepínatelné segmentovaným tlačítkem „Aut
   - `prázdná` (šedá) — v řadě není žádné prkno.
   
   V režimech Automat a Ideální je vždy `✓ celá`, protože pokrytí je dáno konstrukcí. V ručním režimu se přepočítává živě podle textareu a drag&drop akcí.
-- Vybraný režim a ručně umístěná prkna se ukládají do localStorage spolu s ostatními nastaveními.
+- Vybraný režim, ručně umístěná prkna a zadané zářezy se ukládají do localStorage spolu s ostatními nastaveními.
 
 ## Podkladní hranoly
 
 - Aplikace počítá pozice podkladních hranolovníků: hranol musí být pod každou sparou (místem, kde se setkají dva díly v jedné řadě) a navíc ve vzdálenosti dané vstupem „Odsazení krajních hranolovníků" od každého kraje terasy.
 - Pozice hranolovníků jsou unikátní x-souřadnice přes všechny řady vzoru.
+- Pokud je zadaný zářez, hranolovník v jeho X rozsahu se prodlouží ven od základního obdélníku terasy podle hloubky zářezu. Kóty mezi hranolovníky zůstávají podle X souřadnic, ale celková délka hranolů vychází ze skutečných úseků včetně prodloužení do zářezu.
 - Ve výkresu jsou hranolovníky zobrazeny jako svislé přerušované čáry v hnědo-oranžové barvě. Jsou vykresleny pod prkny, takže jsou viditelné pouze v mezerách mezi řadami — prkna je překrývají.
 - **Kotvící body vrutů:** v každém průniku prkna s hranolem jsou na prkně dvě malé černé tečky (jeden vrut u horního, druhý u dolního okraje prkna). Tečky odpovídají dvěma vrutům, kterými je prkno přichycené k hranolu. Když hranol leží přesně ve spáře dvou prken (resp. v mezeře mezi nimi, do vzdálenosti `Mezera` od kraje prkna), patří k oběma sousedním prknům — body se posunou o `edgeInset` (≈ 18 mm) dovnitř od kraje příslušného prkna, takže ve spáře jsou viditelné celkem **4 body** (2 vlevo od osy hranolu pro levé prkno, 2 vpravo pro pravé prkno). Stejnou tolerancí `±Mezera` se řídí i počítání vrutů ve výstupu, aby vizualizace a číslo souhlasily.
 - Nad terasou jsou tick marky a kóty vzdáleností mezi všemi sousedními hranolovníky, včetně kót od okraje terasy k prvnímu a poslednímu hranolu.
@@ -86,11 +91,13 @@ Aplikace nabízí tři režimy přepínatelné segmentovaným tlačítkem „Aut
 
 - Hlavní výkres je vykreslený jako SVG.
 - Terasa je zobrazena v měřítku podle zadaných rozměrů.
+- Zářezy jsou ve výkresu vykreslené jako průsvitné šrafované obdélníky zvenku připojené k horní nebo dolní hraně terasy s popiskem rozměru. V první verzi slouží jako kontrolní vrstva pro hranoly; automatické ani ruční rozložení prken se podle nich zatím neřeže.
 - **Velikost plátna se přizpůsobuje terase:** drawing-frame nemá pevnou minimální výšku, SVG si přes `style.aspectRatio = viewWidth / viewHeight` určí výšku podle poměru viewBoxu, takže nad ani pod terasou nevzniká zbytečný prázdný prostor a sekce řezného plánu + poznámky jsou hned pod kresbou.
 - Vertikální padding uvnitř SVG (prostor pro horní/dolní kóty) se počítá samostatně pro horní okraj (`max(180, pad*0.4)`) a dolní okraj (`max(240, pad*0.45, boardWidth+90)`), aby byl prostor pro kóty co nejtěsnější, ale stále dostatečný pro štítky a pro pás celého posledního prkna.
 - Prkna jsou zobrazena jako samostatné díly v jednotlivých řadách.
 - Mezery mezi řadami jsou vizuálně odlišené.
 - Napojení prken ve stejné řadě je zvýrazněné dvojitou značkou, aby byly řezy dobře vidět.
+- Dvojitá značka spáry se vykresluje v automatickém, ideálním i ručním režimu.
 - Výkres obsahuje kóty délky a šířky terasy.
 - Výkres obsahuje detailní kóty šířky prkna a mezery.
 - Kóty jsou umístěné mimo samotnou plochu pokládky, aby nepřekrývaly prkna.
@@ -114,7 +121,7 @@ V hlavičce výkresu je tlačítko „Export PDF". Po kliknutí aplikace sestav�
 - Pokrytá šířka terasy.
 
 **Pod čárou:**
-- Počet podkladních hranolovníků a jejich celková délka v metrech (počet × šířka terasy).
+- Počet podkladních hranolovníků a jejich celková délka v metrech. U zadaných zářezů je délka počítaná jako součet skutečných úseků včetně prodloužení do zářezů, ne jako počet × celá šířka terasy.
 - Počet distančních podložek. Spočítá se po řadách jako `počet prken v řadě + 1` (každá spára mezi dvěma prkny + jedna podložka na každém kraji řady). Prázdné řady se nezapočítávají.
 - Počet vrutů. Pro každé prkno se sečte počet podkladních hranolů, které pod ním procházejí (včetně hranolů na obou koncích prkna na spáře), a vynásobí se dvěma (dva vruty na každý záchyt). Výsledek se navýší o 10 % rezervu a zaokrouhlí nahoru na celé desítky. Ve výpisu je vidět základní počet i procento rezervy.
 - Řezný plán pro jednotlivá skladová prkna.

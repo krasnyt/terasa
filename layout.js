@@ -334,6 +334,74 @@ export function computeJoistPositions(config, pieces) {
   return Array.from(all).sort((a, b) => a - b);
 }
 
+export function normalizeCutouts(cutouts, config) {
+  if (!Array.isArray(cutouts)) return [];
+
+  return cutouts.map((cutout, index) => {
+    const edge = ["top", "bottom"].includes(cutout.edge) ? cutout.edge : "top";
+    const x = Math.max(0, Number(cutout.x) || 0);
+    const width = Math.max(0, Number(cutout.width) || 0);
+    const depth = Math.max(0, Number(cutout.depth) || 0);
+    const clippedX = Math.min(x, config.terraceLength);
+    const clippedRight = Math.min(config.terraceLength, clippedX + width);
+    const clippedDepth = Math.min(depth, config.terraceWidth);
+    return {
+      id: cutout.id || `c-${index + 1}`,
+      label: String(cutout.label || `Zářez ${index + 1}`).trim() || `Zářez ${index + 1}`,
+      edge,
+      x: clippedX,
+      width: Math.max(0, clippedRight - clippedX),
+      depth: clippedDepth,
+    };
+  }).filter((cutout) => cutout.width > 0.5 && cutout.depth > 0.5);
+}
+
+export function cutoutYRange(cutout, config) {
+  if (cutout.edge === "bottom") {
+    return {
+      y1: config.terraceWidth,
+      y2: config.terraceWidth + cutout.depth,
+    };
+  }
+
+  return {
+    y1: -cutout.depth,
+    y2: 0,
+  };
+}
+
+function mergeTouchingSegments(segments) {
+  return segments
+    .filter((segment) => segment.y2 > segment.y1 + 0.5)
+    .sort((a, b) => a.y1 - b.y1)
+    .reduce((merged, segment) => {
+      const prev = merged.at(-1);
+      if (prev && segment.y1 <= prev.y2 + 0.5) {
+        prev.y2 = Math.max(prev.y2, segment.y2);
+      } else {
+        merged.push({ ...segment });
+      }
+      return merged;
+    }, []);
+}
+
+export function computeJoistLayout(config, pieces, cutouts = []) {
+  const positions = computeJoistPositions(config, pieces);
+  const normalizedCutouts = normalizeCutouts(cutouts, config);
+  const joists = positions.map((x) => {
+    let segments = [{ y1: 0, y2: config.terraceWidth }];
+    normalizedCutouts
+      .filter((cutout) => x >= cutout.x - 0.5 && x <= cutout.x + cutout.width + 0.5)
+      .forEach((cutout) => {
+        segments.push(cutoutYRange(cutout, config));
+      });
+
+    return { x, segments: mergeTouchingSegments(segments) };
+  });
+
+  return { positions, joists, cutouts: normalizedCutouts };
+}
+
 export function packBoards(lengths, stockLength) {
   const boards = [];
   const sorted = lengths

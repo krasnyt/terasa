@@ -2,10 +2,11 @@
 
 import {
   boardRows,
-  computeJoistPositions,
+  computeJoistLayout,
   computeRowCoverage,
+  cutoutYRange,
   fullLastBoardInfo,
-} from "./layout.js";
+} from "./layout.js?v=2";
 
 const svgNS = "http://www.w3.org/2000/svg";
 
@@ -38,6 +39,21 @@ export function createRenderer({ els, state, svgOrigin }) {
       class: "dimension-arrow",
     }));
     defs.appendChild(marker);
+    const cutoutPattern = svgEl("pattern", {
+      id: "cutoutHatch",
+      width: 42,
+      height: 42,
+      patternUnits: "userSpaceOnUse",
+      patternTransform: "rotate(45)",
+    });
+    cutoutPattern.appendChild(svgEl("line", {
+      class: "cutout-hatch-line",
+      x1: 0,
+      y1: 0,
+      x2: 0,
+      y2: 42,
+    }));
+    defs.appendChild(cutoutPattern);
     els.svg.appendChild(defs);
   }
 
@@ -100,13 +116,27 @@ export function createRenderer({ els, state, svgOrigin }) {
     }));
   }
 
-  function renderJoists(config, joistPositions, originX, originY) {
+  function asJoistLayout(config, piecesOrLayout, maybeCutouts) {
+    if (piecesOrLayout && Array.isArray(piecesOrLayout.positions) && Array.isArray(piecesOrLayout.joists)) return piecesOrLayout;
+    return computeJoistLayout(config, piecesOrLayout || [], maybeCutouts || []);
+  }
+
+  function joistCoversY(joist, y, tol) {
+    return joist.segments.some((segment) => y >= segment.y1 - tol && y <= segment.y2 + tol);
+  }
+
+  function renderJoists(config, joistLayout, originX, originY) {
     const group = svgEl("g", { class: "joist-layer" });
     els.svg.appendChild(group);
+    const joistPositions = joistLayout.positions;
+    if (!joistPositions.length) return;
 
-    const tickTop = originY - 28;
-    const dimLineY = originY - 72;
-    const dimLabelY = originY - 96;
+    const topCutoutDepth = joistLayout.cutouts
+      .filter((cutout) => cutout.edge === "top")
+      .reduce((max, cutout) => Math.max(max, cutout.depth), 0);
+    const tickTop = originY - topCutoutDepth - 28;
+    const dimLineY = originY - topCutoutDepth - 72;
+    const dimLabelY = originY - topCutoutDepth - 96;
     const edgeLeft = originX;
     const edgeRight = originX + config.terraceLength;
 
@@ -142,16 +172,19 @@ export function createRenderer({ els, state, svgOrigin }) {
     drawTick(edgeLeft);
     drawSpanDim(edgeLeft, originX + joistPositions[0]);
 
-    joistPositions.forEach((x, i) => {
+    joistLayout.joists.forEach((joist, i) => {
+      const x = joist.x;
       const svgX = originX + x;
 
-      group.appendChild(svgEl("line", {
-        class: "joist-line",
-        x1: svgX,
-        y1: originY,
-        x2: svgX,
-        y2: originY + config.terraceWidth,
-      }));
+      joist.segments.forEach((segment) => {
+        group.appendChild(svgEl("line", {
+          class: "joist-line",
+          x1: svgX,
+          y1: originY + segment.y1,
+          x2: svgX,
+          y2: originY + segment.y2,
+        }));
+      });
 
       drawTick(svgX);
 
@@ -162,6 +195,61 @@ export function createRenderer({ els, state, svgOrigin }) {
 
     drawSpanDim(originX + joistPositions[joistPositions.length - 1], edgeRight);
     drawTick(edgeRight);
+  }
+
+  function renderCutouts(config, cutouts, originX, originY) {
+    if (!cutouts.length) return;
+    const group = svgEl("g", { class: "cutout-layer" });
+    els.svg.appendChild(group);
+
+    cutouts.forEach((cutout) => {
+      const range = cutoutYRange(cutout, config);
+      const rectX = originX + cutout.x;
+      const rectY = originY + range.y1;
+      const rectW = cutout.width;
+      const rectH = range.y2 - range.y1;
+      group.appendChild(svgEl("rect", {
+        class: "cutout-fill",
+        x: rectX,
+        y: rectY,
+        width: rectW,
+        height: rectH,
+      }));
+      group.appendChild(svgEl("rect", {
+        class: "cutout-hatch",
+        x: rectX,
+        y: rectY,
+        width: rectW,
+        height: rectH,
+      }));
+      const label = svgEl("text", {
+        class: "cutout-label",
+        x: rectX + rectW / 2,
+        y: rectY + rectH / 2 + 18,
+        "text-anchor": "middle",
+      });
+      label.textContent = `${cutout.label} ${Math.round(cutout.width)} × ${Math.round(cutout.depth)} mm`;
+      group.appendChild(label);
+    });
+  }
+
+  function renderSeamMarker(piece, originX, originY) {
+    if (piece.x <= 0.5) return;
+
+    els.svg.appendChild(svgEl("line", {
+      class: "seam-halo",
+      x1: originX + piece.x,
+      y1: originY + piece.y + 6,
+      x2: originX + piece.x,
+      y2: originY + piece.y + piece.width - 6,
+    }));
+    els.svg.appendChild(svgEl("line", {
+      class: "seam-line",
+      x1: originX + piece.x,
+      y1: originY + piece.y + 6,
+      x2: originX + piece.x,
+      y2: originY + piece.y + piece.width - 6,
+    }));
   }
 
   function renderAutoPiece(piece, originX, originY) {
@@ -178,22 +266,7 @@ export function createRenderer({ els, state, svgOrigin }) {
       rx: 5,
     }));
 
-    if (piece.x > 0) {
-      els.svg.appendChild(svgEl("line", {
-        class: "seam-halo",
-        x1: originX + piece.x,
-        y1: originY + piece.y + 6,
-        x2: originX + piece.x,
-        y2: originY + piece.y + piece.width - 6,
-      }));
-      els.svg.appendChild(svgEl("line", {
-        class: "seam-line",
-        x1: originX + piece.x,
-        y1: originY + piece.y + 6,
-        x2: originX + piece.x,
-        y2: originY + piece.y + piece.width - 6,
-      }));
-    }
+    renderSeamMarker(piece, originX, originY);
   }
 
   function renderManualPiece(piece, config, originX, originY) {
@@ -211,6 +284,8 @@ export function createRenderer({ els, state, svgOrigin }) {
       height: piece.width,
       rx: 5,
     }));
+
+    renderSeamMarker(piece, originX, originY);
 
     if (overflowLeft > 0.5) {
       els.svg.appendChild(svgEl("rect", {
@@ -252,7 +327,7 @@ export function createRenderer({ els, state, svgOrigin }) {
     }
   }
 
-  function renderScrewDots(pieces, joistPositions, config, originX, originY) {
+  function renderScrewDots(pieces, joistLayout, config, originX, originY) {
     const group = svgEl("g", { class: "screw-layer" });
     els.svg.appendChild(group);
     const edgeInset = 18;
@@ -263,7 +338,8 @@ export function createRenderer({ els, state, svgOrigin }) {
       const yBot = originY + p.y + p.width - widthInset;
       const left = p.x;
       const right = p.x + p.length;
-      for (const jx of joistPositions) {
+      for (const joist of joistLayout.joists) {
+        const jx = joist.x;
         if (jx < left - tol || jx > right + tol) continue;
         let cx;
         if (jx <= left + edgeInset + 0.5) {
@@ -273,8 +349,12 @@ export function createRenderer({ els, state, svgOrigin }) {
         } else {
           cx = originX + jx;
         }
-        group.appendChild(svgEl("circle", { class: "screw-dot", cx, cy: yTop, r: 6 }));
-        group.appendChild(svgEl("circle", { class: "screw-dot", cx, cy: yBot, r: 6 }));
+        if (joistCoversY(joist, p.y + widthInset, tol)) {
+          group.appendChild(svgEl("circle", { class: "screw-dot", cx, cy: yTop, r: 6 }));
+        }
+        if (joistCoversY(joist, p.y + p.width - widthInset, tol)) {
+          group.appendChild(svgEl("circle", { class: "screw-dot", cx, cy: yBot, r: 6 }));
+        }
       }
     }
   }
@@ -428,9 +508,16 @@ export function createRenderer({ els, state, svgOrigin }) {
 
   function prepareSvg(config) {
     clearSvg();
+    const cutouts = state.cutouts || [];
+    const topCutoutDepth = cutouts
+      .filter((cutout) => cutout.edge !== "bottom")
+      .reduce((max, cutout) => Math.max(max, Number(cutout.depth) || 0), 0);
+    const bottomCutoutDepth = cutouts
+      .filter((cutout) => cutout.edge === "bottom")
+      .reduce((max, cutout) => Math.max(max, Number(cutout.depth) || 0), 0);
     const pad = Math.max(220, config.terraceLength * 0.08);
-    const topPad = Math.max(180, pad * 0.4);
-    const bottomPad = Math.max(240, pad * 0.45, config.boardWidth + 90);
+    const topPad = Math.max(180, pad * 0.4, topCutoutDepth + 160);
+    const bottomPad = Math.max(240, pad * 0.45, config.boardWidth + 90, bottomCutoutDepth + 240);
     const rightDimensionPad = Math.max(pad, 780);
     const viewWidth = config.terraceLength + pad + rightDimensionPad;
     const viewHeight = config.terraceWidth + topPad + bottomPad;
@@ -469,12 +556,14 @@ export function createRenderer({ els, state, svgOrigin }) {
     });
   }
 
-  function renderSvg(config, layout, joistPositions) {
+  function renderSvg(config, layout, joistLayout) {
+    const actualJoistLayout = asJoistLayout(config, joistLayout, state.cutouts);
     const { originX, originY } = prepareSvg(config);
     renderGaps(config, layout.rows, originX, originY);
-    renderJoists(config, joistPositions, originX, originY);
+    renderJoists(config, actualJoistLayout, originX, originY);
     layout.pieces.forEach((piece) => renderAutoPiece(piece, originX, originY));
-    renderScrewDots(layout.pieces, joistPositions, config, originX, originY);
+    renderScrewDots(layout.pieces, actualJoistLayout, config, originX, originY);
+    renderCutouts(config, actualJoistLayout.cutouts, originX, originY);
     renderFullLastBoardExtension(config, layout, originX, originY);
     renderRowCoverage(config, layout.rows, layout.pieces, originX, originY);
     renderDimensions(config, originX, originY);
@@ -485,16 +574,18 @@ export function createRenderer({ els, state, svgOrigin }) {
     const rows = boardRows(config);
     renderGaps(config, rows, originX, originY);
 
-    const joistPositions = computeJoistPositions(config, state.manualPieces);
-    renderJoists(config, joistPositions, originX, originY);
+    const joistLayout = computeJoistLayout(config, state.manualPieces, state.cutouts);
+    renderJoists(config, joistLayout, originX, originY);
     state.manualPieces.forEach((piece) => renderManualPiece(piece, config, originX, originY));
-    renderScrewDots(state.manualPieces, joistPositions, config, originX, originY);
+    renderScrewDots(state.manualPieces, joistLayout, config, originX, originY);
+    renderCutouts(config, joistLayout.cutouts, originX, originY);
     renderFullLastBoardExtension(config, { rows }, originX, originY);
     renderRowCoverage(config, rows, state.manualPieces, originX, originY);
     renderDimensions(config, originX, originY);
   }
 
-  function renderSummary(config, layout, joistPositions) {
+  function renderSummary(config, layout, joistLayout) {
+    const actualJoistLayout = asJoistLayout(config, joistLayout, state.cutouts);
     const pieceCount = layout.pieces.length;
     const used = layout.packed.reduce((sum, board) => sum + board.cuts.reduce((inner, cut) => inner + cut, 0), 0);
     const purchased = layout.packed.length * config.boardLength;
@@ -510,11 +601,18 @@ export function createRenderer({ els, state, svgOrigin }) {
     const screwTol = config.gap + 0.5;
     let screwBase = 0;
     for (const piece of layout.pieces) {
-      for (const jx of joistPositions) {
-        if (jx >= piece.x - screwTol && jx <= piece.x + piece.length + screwTol) screwBase += 2;
+      for (const joist of actualJoistLayout.joists) {
+        const jx = joist.x;
+        if (jx < piece.x - screwTol || jx > piece.x + piece.length + screwTol) continue;
+        const widthInset = Math.max(18, piece.width * 0.15);
+        if (joistCoversY(joist, piece.y + widthInset, screwTol)) screwBase += 1;
+        if (joistCoversY(joist, piece.y + piece.width - widthInset, screwTol)) screwBase += 1;
       }
     }
     const screwTotal = Math.ceil((screwBase * (1 + screwReservePct / 100)) / 10) * 10;
+    const joistLengthMm = actualJoistLayout.joists.reduce((sum, joist) => (
+      sum + joist.segments.reduce((inner, segment) => inner + Math.max(0, segment.y2 - segment.y1), 0)
+    ), 0);
 
     const topItems = [
       ["Skladová prkna", `${layout.packed.length} ks`],
@@ -525,7 +623,7 @@ export function createRenderer({ els, state, svgOrigin }) {
     ];
 
     const bottomItems = [
-      ["Podkladní hranoly", `${joistPositions.length} ks / ${((joistPositions.length * config.terraceWidth) / 1000).toFixed(2)} m`],
+      ["Podkladní hranoly", `${actualJoistLayout.positions.length} ks / ${(joistLengthMm / 1000).toFixed(2)} m`],
       ["Distanční podložky", `${spacerCount} ks`],
       ["Vruty", { html: `<span class="summary-main">${screwTotal} ks</span><span class="summary-detail">${screwBase} + ${screwReservePct} % rezerva</span>` }],
     ];

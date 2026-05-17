@@ -19,10 +19,32 @@ function numberValue(input, fallback) {
   return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
+function savedNumber(value, fallback, options = {}) {
+  if (value === "" || value === null || value === undefined) return fallback;
+  const numeric = Number(value);
+  const min = options.min ?? 0;
+  const allowZero = options.allowZero ?? false;
+  if (!Number.isFinite(numeric)) return fallback;
+  if (allowZero) return numeric >= min ? numeric : fallback;
+  return numeric > min ? numeric : fallback;
+}
+
 export function loadConfig() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-    return { ...DEFAULTS, ...saved };
+    return {
+      ...DEFAULTS,
+      ...saved,
+      terraceLength: savedNumber(saved.terraceLength, DEFAULTS.terraceLength),
+      terraceWidth: savedNumber(saved.terraceWidth, DEFAULTS.terraceWidth),
+      boardLength: savedNumber(saved.boardLength, DEFAULTS.boardLength),
+      boardWidth: savedNumber(saved.boardWidth, DEFAULTS.boardWidth),
+      gap: savedNumber(saved.gap, DEFAULTS.gap, { allowZero: true }),
+      minOffcut: savedNumber(saved.minOffcut, DEFAULTS.minOffcut, { allowZero: true }),
+      patternRows: Math.max(1, Math.round(savedNumber(saved.patternRows, DEFAULTS.patternRows))),
+      joistEdgeOffset: savedNumber(saved.joistEdgeOffset, DEFAULTS.joistEdgeOffset, { allowZero: true }),
+      maxJoistSpacing: Math.max(100, savedNumber(saved.maxJoistSpacing, DEFAULTS.maxJoistSpacing)),
+    };
   } catch {
     return { ...DEFAULTS };
   }
