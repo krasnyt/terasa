@@ -488,7 +488,10 @@ function handleMeasurePointerDown(event) {
   event.stopImmediatePropagation();
   renderer.hideBoardTooltip();
 
-  if (state.measure.points.length === 1) {
+  if (state.measure.points.length >= 2) {
+    state.measure.points = [];
+    state.measure.preview = null;
+  } else if (state.measure.points.length === 1) {
     state.measure.points = [state.measure.points[0], point];
     state.measure.preview = null;
   } else {

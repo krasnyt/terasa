@@ -109,7 +109,7 @@ Aplikace nabízí tři režimy přepínatelné segmentovaným tlačítkem „Aut
 - Při hoveru nebo kliknutí na díl prkna se zobrazí tooltip.
 - Tooltip prkna má pevnou strukturu a šířku, aby údaje při přejíždění mezi prkny neodskakovaly.
 - Tooltip prkna zobrazuje rozměr dílu, pozici levého horního rohu `[x;y]` vůči levému hornímu rohu terasy a číslo řady.
-- Tlačítko „Metr" v hlavičce výkresu zapne měřicí režim. První klik do SVG nastaví počáteční bod, pohyb myši ukazuje náhled a druhý klik zobrazí přímou vzdálenost dvou libovolných bodů v milimetrech. Další klik v aktivním režimu začne nové měření; klávesa Escape režim vypne.
+- Tlačítko „Metr" v hlavičce výkresu zapne měřicí režim. První klik do SVG nastaví počáteční bod, pohyb myši ukazuje náhled a druhý klik zobrazí přímou vzdálenost dvou libovolných bodů v milimetrech. Další klik v aktivním režimu smaže poslední měření a až následující klik začne nové; klávesa Escape režim vypne.
 
 ## Výstupy
 
