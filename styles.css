@@ -165,6 +165,7 @@ details[open] > summary.panel-title-row::before {
 }
 
 .panel-title-row h2 {
+  flex: 1;
   margin-bottom: 0;
 }
 
@@ -624,20 +625,47 @@ textarea {
   justify-items: end;
 }
 
-.pdf-export-btn {
+.workspace-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.pdf-export-btn,
+.measure-tool-btn {
   min-height: 36px;
   padding: 0 14px;
   border: 1px solid rgba(25, 103, 210, 0.34);
   border-radius: 6px;
-  color: #fff;
-  background: var(--accent);
   font-size: 0.84rem;
   font-weight: 800;
+}
+
+.pdf-export-btn {
+  color: #fff;
+  background: var(--accent);
 }
 
 .pdf-export-btn:hover,
 .pdf-export-btn:focus-visible {
   background: var(--accent-dark);
+}
+
+.measure-tool-btn {
+  color: var(--accent-dark);
+  background: #fff;
+}
+
+.measure-tool-btn:hover,
+.measure-tool-btn:focus-visible,
+.measure-tool-btn.is-active {
+  color: #fff;
+  background: #0f5f8f;
+}
+
+.measure-tool-btn.is-active {
+  border-color: rgba(15, 95, 143, 0.7);
 }
 
 .legend {
@@ -743,6 +771,10 @@ textarea {
   user-select: none;
 }
 
+#deckSvg.is-measuring {
+  cursor: crosshair;
+}
+
 .deck-outline {
   fill: rgba(255, 255, 255, 0.72);
   stroke: #344054;
@@ -804,6 +836,10 @@ textarea {
   pointer-events: none;
 }
 
+.pedestal-layer {
+  pointer-events: none;
+}
+
 .cutout-layer {
   pointer-events: none;
 }
@@ -851,6 +887,18 @@ textarea {
   stroke-width: 4;
 }
 
+.pedestal-dot {
+  fill: rgba(25, 103, 210, 0.18);
+  stroke: #1967d2;
+  stroke-width: 7;
+}
+
+.pedestal-mark {
+  stroke: #1967d2;
+  stroke-linecap: round;
+  stroke-width: 6;
+}
+
 .screw-dot {
   fill: #1f2933;
   pointer-events: none;
@@ -872,6 +920,38 @@ textarea {
 
 .dimension-layer {
   pointer-events: none;
+}
+
+.measure-layer {
+  pointer-events: none;
+}
+
+.measure-line {
+  stroke: #0f5f8f;
+  stroke-linecap: round;
+  stroke-width: 9;
+}
+
+.measure-line.is-preview {
+  stroke-dasharray: 28 18;
+}
+
+.measure-point {
+  fill: #fff;
+  stroke: #0f5f8f;
+  stroke-width: 7;
+}
+
+.measure-label {
+  fill: #0b4a6f;
+  font-size: 68px;
+  font-weight: 900;
+  paint-order: stroke;
+  pointer-events: none;
+  stroke: rgba(255, 255, 255, 0.94);
+  stroke-linejoin: round;
+  stroke-width: 18px;
+  text-anchor: middle;
 }
 
 .dimension-line {

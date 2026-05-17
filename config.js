@@ -10,6 +10,8 @@ export const DEFAULTS = {
   patternRows: 3,
   joistEdgeOffset: 200,
   maxJoistSpacing: 1000,
+  pedestalEdgeOffset: 300,
+  pedestalSpacing: 500,
 };
 
 export const STORAGE_KEY = "terasa-navrh";
@@ -44,6 +46,8 @@ export function loadConfig() {
       patternRows: Math.max(1, Math.round(savedNumber(saved.patternRows, DEFAULTS.patternRows))),
       joistEdgeOffset: savedNumber(saved.joistEdgeOffset, DEFAULTS.joistEdgeOffset, { allowZero: true }),
       maxJoistSpacing: Math.max(100, savedNumber(saved.maxJoistSpacing, DEFAULTS.maxJoistSpacing)),
+      pedestalEdgeOffset: savedNumber(saved.pedestalEdgeOffset, DEFAULTS.pedestalEdgeOffset, { allowZero: true }),
+      pedestalSpacing: Math.max(100, savedNumber(saved.pedestalSpacing, DEFAULTS.pedestalSpacing)),
     };
   } catch {
     return { ...DEFAULTS };
@@ -60,6 +64,8 @@ export function applyConfig(inputs, config) {
   inputs.patternRows.value = config.patternRows;
   inputs.joistEdgeOffset.value = config.joistEdgeOffset;
   inputs.maxJoistSpacing.value = config.maxJoistSpacing;
+  inputs.pedestalEdgeOffset.value = config.pedestalEdgeOffset;
+  inputs.pedestalSpacing.value = config.pedestalSpacing;
 }
 
 export function readConfig(inputs) {
@@ -73,5 +79,7 @@ export function readConfig(inputs) {
     patternRows: Math.max(1, Math.round(numberValue(inputs.patternRows, DEFAULTS.patternRows))),
     joistEdgeOffset: Math.max(0, Number(inputs.joistEdgeOffset.value) || 0),
     maxJoistSpacing: Math.max(100, numberValue(inputs.maxJoistSpacing, DEFAULTS.maxJoistSpacing)),
+    pedestalEdgeOffset: Math.max(0, Number(inputs.pedestalEdgeOffset.value) || 0),
+    pedestalSpacing: Math.max(100, numberValue(inputs.pedestalSpacing, DEFAULTS.pedestalSpacing)),
   };
 }

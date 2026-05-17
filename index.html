@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Plánovač pokládky terasy</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-    <link rel="stylesheet" href="styles.css?v=41" />
+    <link rel="stylesheet" href="styles.css?v=44" />
   </head>
   <body>
     <main class="app-shell">
@@ -85,52 +85,76 @@
         </section>
 
         <section class="panel">
-          <h2>Vzor pokládky</h2>
-          <div class="mode-panel">
-            <div class="segmented">
-              <button id="autoLayoutBtn" class="is-active" type="button">Automat</button>
-              <button id="optimalLayoutBtn" type="button">Ideální</button>
-              <button id="manualLayoutBtn" type="button">Ručně</button>
-            </div>
-            <button id="transferToManualBtn" class="secondary-action-btn" type="button">Přenést aktuální návrh do ručního režimu</button>
-            <div id="manualLayoutPanel" class="is-hidden">
-              <p class="hint">Zadej řady do textového pole, nebo přetáhni prkna z palety nad výkresem.</p>
-            </div>
-            <div id="autoLayoutPanel">
+          <details id="layoutPatternDetails" open>
+            <summary class="panel-title-row">
+              <h2>Vzor pokládky</h2>
+            </summary>
+            <div class="mode-panel">
+              <div class="segmented">
+                <button id="autoLayoutBtn" class="is-active" type="button">Automat</button>
+                <button id="optimalLayoutBtn" type="button">Ideální</button>
+                <button id="manualLayoutBtn" type="button">Ručně</button>
+              </div>
+              <button id="transferToManualBtn" class="secondary-action-btn" type="button">Přenést aktuální návrh do ručního režimu</button>
+              <div id="manualLayoutPanel" class="is-hidden">
+                <p class="hint">Zadej řady do textového pole, nebo přetáhni prkna z palety nad výkresem.</p>
+              </div>
+              <div id="autoLayoutPanel">
+                <label>
+                  <span class="label-row">
+                    Opakování vzoru
+                    <button class="help-dot" type="button" aria-label="Nápověda k opakování vzoru" data-tooltip="Po kolika řadách se má vzor spár opakovat. Posun spár se dopočítá tak, aby byl vzor pravidelný a odpad co nejmenší.">?</button>
+                  </span>
+                  <span class="input-unit">
+                    <input id="patternRows" type="number" min="2" max="12" step="1" />
+                    <span>řad</span>
+                  </span>
+                </label>
+              </div>
+              <div id="optimalLayoutPanel" class="is-hidden">
+                <label>
+                  <span class="label-row">
+                    Max. rozteč hranolů
+                    <button class="help-dot" type="button" aria-label="Nápověda k maximální rozteči hranolů" data-tooltip="Největší povolená vzdálenost mezi sousedními hranoly. Spáry prken jsou vždy přímo pod hranoly. Ovlivňuje délky řezaných dílů.">?</button>
+                  </span>
+                  <span class="input-unit">
+                    <input id="maxJoistSpacing" type="number" min="100" step="50" />
+                    <span>mm</span>
+                  </span>
+                </label>
+              </div>
               <label>
                 <span class="label-row">
-                  Opakování vzoru
-                  <button class="help-dot" type="button" aria-label="Nápověda k opakování vzoru" data-tooltip="Po kolika řadách se má vzor spár opakovat. Posun spár se dopočítá tak, aby byl vzor pravidelný a odpad co nejmenší.">?</button>
+                  Odsazení krajních hranolovníků
+                  <button class="help-dot" type="button" aria-label="Nápověda k odsazení krajních hranolovníků" data-tooltip="Vzdálenost prvního a posledního hranolovníku od kraje terasy.">?</button>
                 </span>
                 <span class="input-unit">
-                  <input id="patternRows" type="number" min="2" max="12" step="1" />
-                  <span>řad</span>
+                  <input id="joistEdgeOffset" type="number" min="0" step="10" />
+                  <span>mm</span>
                 </span>
               </label>
-            </div>
-            <div id="optimalLayoutPanel" class="is-hidden">
               <label>
                 <span class="label-row">
-                  Max. rozteč hranolů
-                  <button class="help-dot" type="button" aria-label="Nápověda k maximální rozteči hranolů" data-tooltip="Největší povolená vzdálenost mezi sousedními hranoly. Spáry prken jsou vždy přímo pod hranoly. Ovlivňuje délky řezaných dílů.">?</button>
+                  Odsazení rektifikačních terčů
+                  <button class="help-dot" type="button" aria-label="Nápověda k odsazení rektifikačních terčů" data-tooltip="Vzdálenost prvního a posledního rektifikačního terče od okraje každého úseku podkladního hranolu.">?</button>
                 </span>
                 <span class="input-unit">
-                  <input id="maxJoistSpacing" type="number" min="100" step="50" />
+                  <input id="pedestalEdgeOffset" type="number" min="0" step="10" />
+                  <span>mm</span>
+                </span>
+              </label>
+              <label>
+                <span class="label-row">
+                  Rozteč rektifikačních terčů
+                  <button class="help-dot" type="button" aria-label="Nápověda k rozteči rektifikačních terčů" data-tooltip="Preferovaná největší vzdálenost mezi sousedními terči pod jedním hranolem. Terče se mezi krajními body rovnoměrně rozloží.">?</button>
+                </span>
+                <span class="input-unit">
+                  <input id="pedestalSpacing" type="number" min="100" step="50" />
                   <span>mm</span>
                 </span>
               </label>
             </div>
-            <label>
-              <span class="label-row">
-                Odsazení krajních hranolovníků
-                <button class="help-dot" type="button" aria-label="Nápověda k odsazení krajních hranolovníků" data-tooltip="Vzdálenost prvního a posledního hranolovníku od kraje terasy.">?</button>
-              </span>
-              <span class="input-unit">
-                <input id="joistEdgeOffset" type="number" min="0" step="10" />
-                <span>mm</span>
-              </span>
-            </label>
-          </div>
+          </details>
         </section>
 
         <section class="panel cutouts-panel">
@@ -148,8 +172,12 @@
         </section>
 
         <section class="panel summary-panel">
-          <h2>Výstup</h2>
-          <div id="summary" class="summary-container"></div>
+          <details id="summaryDetails" open>
+            <summary class="panel-title-row">
+              <h2>Výstup</h2>
+            </summary>
+            <div id="summary" class="summary-container"></div>
+          </details>
         </section>
       </aside>
 
@@ -160,7 +188,10 @@
             <p>Změna vstupu okamžitě přepočítá řezný plán i vizualizaci.</p>
           </div>
           <div class="workspace-actions">
-            <button id="pdfExportBtn" class="pdf-export-btn" type="button">Export PDF</button>
+            <div class="workspace-action-buttons">
+              <button id="measureToolBtn" class="measure-tool-btn" type="button" aria-pressed="false">Metr</button>
+              <button id="pdfExportBtn" class="pdf-export-btn" type="button">Export PDF</button>
+            </div>
             <div class="legend">
               <span><i class="legend-board"></i> prkno</span>
               <span><i class="legend-gap"></i> mezera</span>
@@ -205,6 +236,6 @@
       </section>
     </main>
 
-    <script type="module" src="app.js?v=57"></script>
+    <script type="module" src="app.js?v=59"></script>
   </body>
 </html>

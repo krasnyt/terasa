@@ -22,13 +22,15 @@ Tento soubor je průběžný popis funkcí aplikace. Při každém přidání, z
 - Počet řad, po kterých se má opakovat vzor spár (pouze v režimu Automat).
 - Maximální rozteč sousedních hranolů v milimetrech (pouze v režimu Ideální, výchozí 1000 mm).
 - Odsazení krajních hranolovníků od okraje terasy v milimetrech.
+- Odsazení rektifikačních terčů od krajů každého úseku podkladního hranolu v milimetrech (výchozí 300 mm).
+- Preferovaná rozteč rektifikačních terčů pod jedním hranolem v milimetrech (výchozí 500 mm).
 - U všech vstupů je ikona nápovědy s vysvětlivkou při hoveru, focusu nebo kliknutí.
 - Volitelné obdélníkové zářezy/výklenky u okrajů terasy pro místa u oken nebo dveří. Každý zářez má název, stranu (horní/dolní), vzdálenost od levého kraje, šířku a hloubku v milimetrech. Hloubka se zadává směrem ven od základního obdélníku terasy.
 - Panel „Zářezy" je sbalitelný. Ve sbaleném stavu ukazuje počet zadaných zářezů a tlačítko pro přidání, aby panel „Výstup" zůstával v levém sloupci rychle dostupný.
 
 ## Návrh pokládky
 
-Aplikace nabízí tři režimy přepínatelné segmentovaným tlačítkem „Automat" / „Ideální" / „Ručně" v panelu „Vzor pokládky".
+Aplikace nabízí tři režimy přepínatelné segmentovaným tlačítkem „Automat" / „Ideální" / „Ručně" v panelu „Vzor pokládky". Panel „Vzor pokládky" je sbalitelný stejně jako panel „Zářezy".
 
 - V režimech Automat a Ideální je dostupné tlačítko „Přenést aktuální návrh do ručního režimu". Tlačítko zkopíruje právě spočítané díly do ručního režimu, nahradí dosavadní ručně umístěná prkna a přepne aplikaci do režimu Ručně. Pokud aktuální automatický návrh nejde sestavit, tlačítko je vypnuté.
 
@@ -85,6 +87,7 @@ Aplikace nabízí tři režimy přepínatelné segmentovaným tlačítkem „Aut
 - Pokud je zadaný zářez, hranolovník v jeho X rozsahu se prodlouží ven od základního obdélníku terasy podle hloubky zářezu. Kóty mezi hranolovníky zůstávají podle X souřadnic, ale celková délka hranolů vychází ze skutečných úseků včetně prodloužení do zářezu.
 - Ve výkresu jsou hranolovníky zobrazeny jako svislé přerušované čáry v hnědo-oranžové barvě. Jsou vykresleny pod prkny, takže jsou viditelné pouze v mezerách mezi řadami — prkna je překrývají.
 - **Kotvící body vrutů:** v každém průniku prkna s hranolem jsou na prkně dvě malé černé tečky (jeden vrut u horního, druhý u dolního okraje prkna). Tečky odpovídají dvěma vrutům, kterými je prkno přichycené k hranolu. Když hranol leží přesně ve spáře dvou prken (resp. v mezeře mezi nimi, do vzdálenosti `Mezera` od kraje prkna), patří k oběma sousedním prknům — body se posunou o `edgeInset` (≈ 18 mm) dovnitř od kraje příslušného prkna, takže ve spáře jsou viditelné celkem **4 body** (2 vlevo od osy hranolu pro levé prkno, 2 vpravo pro pravé prkno). Stejnou tolerancí `±Mezera` se řídí i počítání vrutů ve výstupu, aby vizualizace a číslo souhlasily.
+- **Rektifikační terče:** pod každým úsekem podkladního hranolu se vykreslí modré značky terčů. První a poslední terč úseku jsou od jeho krajů odsazené podle vstupu „Odsazení rektifikačních terčů"; mezi nimi se terče rovnoměrně rozloží tak, aby nepřekročily vstup „Rozteč rektifikačních terčů". Pokud je úsek kratší než dvojnásobek odsazení, vykreslí se jeden terč uprostřed úseku.
 - Nad terasou jsou tick marky a kóty vzdáleností mezi všemi sousedními hranolovníky, včetně kót od okraje terasy k prvnímu a poslednímu hranolu.
 
 ## Vizualizace
@@ -106,10 +109,11 @@ Aplikace nabízí tři režimy přepínatelné segmentovaným tlačítkem „Aut
 - Při hoveru nebo kliknutí na díl prkna se zobrazí tooltip.
 - Tooltip prkna má pevnou strukturu a šířku, aby údaje při přejíždění mezi prkny neodskakovaly.
 - Tooltip prkna zobrazuje rozměr dílu, pozici levého horního rohu `[x;y]` vůči levému hornímu rohu terasy a číslo řady.
+- Tlačítko „Metr" v hlavičce výkresu zapne měřicí režim. První klik do SVG nastaví počáteční bod, pohyb myši ukazuje náhled a druhý klik zobrazí přímou vzdálenost dvou libovolných bodů v milimetrech. Další klik v aktivním režimu začne nové měření; klávesa Escape režim vypne.
 
 ## Výstupy
 
-Panel „Výstup" je rozdělen vodorovnou čárou na dvě sekce. Nad čárou je obecná spotřeba materiálu, pod čárou navazující drobný materiál (hranoly a spojovací prvky).
+Panel „Výstup" je sbalitelný a rozdělen vodorovnou čárou na dvě sekce. Nad čárou je obecná spotřeba materiálu, pod čárou navazující drobný materiál (hranoly a spojovací prvky).
 
 V hlavičce výkresu je tlačítko „Export PDF". Po kliknutí aplikace sestaví tiskový list A4 na šířku s aktuálním režimem, vstupními hodnotami, výkresem, výstupem, řezným plánem a poznámkami. Řezný plán se v PDF při sestavení rozdělí do 1–4 samostatných sloupců podle počtu skladových prken; pruhy řezů se v PDF generují jako inline SVG, aby se zobrazily i při tisku bez CSS pozadí. Celý obsah se před otevřením tiskového dialogu zmenší tak, aby se vešel na jednu stránku; PDF se uloží přes systémovou volbu tisku „Uložit jako PDF".
 
@@ -122,6 +126,7 @@ V hlavičce výkresu je tlačítko „Export PDF". Po kliknutí aplikace sestav�
 
 **Pod čárou:**
 - Počet podkladních hranolovníků a jejich celková délka v metrech. U zadaných zářezů je délka počítaná jako součet skutečných úseků včetně prodloužení do zářezů, ne jako počet × celá šířka terasy.
+- Počet rektifikačních terčů pod podkladními hranoly.
 - Počet distančních podložek. Spočítá se po řadách jako `počet prken v řadě + 1` (každá spára mezi dvěma prkny + jedna podložka na každém kraji řady). Prázdné řady se nezapočítávají.
 - Počet vrutů. Pro každé prkno se sečte počet podkladních hranolů, které pod ním procházejí (včetně hranolů na obou koncích prkna na spáře), a vynásobí se dvěma (dva vruty na každý záchyt). Výsledek se navýší o 10 % rezervu a zaokrouhlí nahoru na celé desítky. Ve výpisu je vidět základní počet i procento rezervy.
 - Řezný plán pro jednotlivá skladová prkna.

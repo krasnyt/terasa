@@ -244,6 +244,7 @@ export function createManualController({
     els.paletteBoardChip.addEventListener("pointerdown", startPaletteDrag);
 
     els.svg.addEventListener("pointerdown", (e) => {
+      if (state.measure?.enabled) return;
       if (state.layoutMode !== "manual") return;
       const data = clientToSvgData(e.clientX, e.clientY);
       if (!data) return;
@@ -265,6 +266,7 @@ export function createManualController({
     els.svg.addEventListener("pointerover", renderer.showBoardTooltip);
     els.svg.addEventListener("pointermove", (e) => {
       renderer.moveBoardTooltip(e);
+      if (state.measure?.enabled) return;
       if (state.layoutMode !== "manual" || dragState) return;
       const data = clientToSvgData(e.clientX, e.clientY);
       if (!data) return;

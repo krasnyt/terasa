@@ -1,19 +1,19 @@
 "use strict";
 
-import { applyConfig, loadConfig, readConfig, STORAGE_KEY } from "./config.js?v=2";
+import { applyConfig, loadConfig, readConfig, STORAGE_KEY } from "./config.js?v=3";
 import {
   boardRows,
   computeJoistLayout,
   computeOptimalLayout,
   createAutoLayout,
   packBoards,
-} from "./layout.js?v=2";
+} from "./layout.js?v=3";
 import { createManualController } from "./manual.js";
-import { createRenderer } from "./render.js?v=5";
+import { createRenderer } from "./render.js?v=7";
 
 const qs = (selector) => document.querySelector(selector);
 
-const state = { layoutMode: "auto", manualPieces: [], cutouts: [] };
+const state = { layoutMode: "auto", manualPieces: [], cutouts: [], measure: { enabled: false, points: [], preview: null } };
 const svgOrigin = { x: 0, y: 0 };
 
 const inputs = {
@@ -26,6 +26,8 @@ const inputs = {
   patternRows: qs("#patternRows"),
   joistEdgeOffset: qs("#joistEdgeOffset"),
   maxJoistSpacing: qs("#maxJoistSpacing"),
+  pedestalEdgeOffset: qs("#pedestalEdgeOffset"),
+  pedestalSpacing: qs("#pedestalSpacing"),
 };
 
 const els = {
@@ -49,6 +51,7 @@ const els = {
   cutoutsCount: qs("#cutoutsCount"),
   addCutoutBtn: qs("#addCutoutBtn"),
   cutoutsList: qs("#cutoutsList"),
+  measureToolBtn: qs("#measureToolBtn"),
   pdfExportBtn: qs("#pdfExportBtn"),
 };
 
@@ -74,6 +77,17 @@ function scheduleSave() {
       // localStorage nedostupný (soukromé prohlížení apod.)
     }
   }, 5000);
+}
+
+function clientToSvgData(clientX, clientY) {
+  const rect = els.svg.getBoundingClientRect();
+  const vb = els.svg.viewBox.baseVal;
+  if (!rect.width || !rect.height || !vb.width || !vb.height) return null;
+
+  return {
+    x: (clientX - rect.left) * (vb.width / rect.width) - svgOrigin.x,
+    y: (clientY - rect.top) * (vb.height / rect.height) - svgOrigin.y,
+  };
 }
 
 const manualController = createManualController({
@@ -292,6 +306,8 @@ function configRows(config) {
     ["Mezera", `${Math.round(config.gap)} mm`],
     ["Min. odřezek", `${Math.round(config.minOffcut)} mm`],
     ["Odsazení hranolů", `${Math.round(config.joistEdgeOffset)} mm`],
+    ["Odsazení terčů", `${Math.round(config.pedestalEdgeOffset)} mm`],
+    ["Rozteč terčů", `${Math.round(config.pedestalSpacing)} mm`],
   ];
 
   if (state.layoutMode === "auto") rows.push(["Opakování vzoru", `${Math.round(config.patternRows)} řad`]);
@@ -454,6 +470,44 @@ function exportPdf() {
   window.addEventListener("afterprint", cleanup);
 }
 
+function setMeasureEnabled(enabled) {
+  state.measure.enabled = enabled;
+  state.measure.preview = null;
+  els.measureToolBtn.classList.toggle("is-active", enabled);
+  els.measureToolBtn.setAttribute("aria-pressed", enabled ? "true" : "false");
+  els.svg.classList.toggle("is-measuring", enabled);
+  renderer.renderMeasureOverlay();
+}
+
+function handleMeasurePointerDown(event) {
+  if (!state.measure.enabled) return;
+  const point = clientToSvgData(event.clientX, event.clientY);
+  if (!point) return;
+
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  renderer.hideBoardTooltip();
+
+  if (state.measure.points.length === 1) {
+    state.measure.points = [state.measure.points[0], point];
+    state.measure.preview = null;
+  } else {
+    state.measure.points = [point];
+    state.measure.preview = null;
+  }
+
+  renderer.renderMeasureOverlay();
+}
+
+function handleMeasurePointerMove(event) {
+  if (!state.measure.enabled || state.measure.points.length !== 1) return;
+  const point = clientToSvgData(event.clientX, event.clientY);
+  if (!point) return;
+  event.stopImmediatePropagation();
+  state.measure.preview = point;
+  renderer.renderMeasureOverlay();
+}
+
 function bindEvents() {
   Object.values(inputs).forEach((input) => {
     input.addEventListener("input", () => {
@@ -466,7 +520,13 @@ function bindEvents() {
   els.optimalLayoutBtn.addEventListener("click", () => setLayoutMode("optimal"));
   els.manualLayoutBtn.addEventListener("click", () => setLayoutMode("manual"));
   els.transferToManualBtn.addEventListener("click", transferCurrentLayoutToManual);
+  els.measureToolBtn.addEventListener("click", () => setMeasureEnabled(!state.measure.enabled));
   els.pdfExportBtn.addEventListener("click", exportPdf);
+  els.svg.addEventListener("pointerdown", handleMeasurePointerDown);
+  els.svg.addEventListener("pointermove", handleMeasurePointerMove);
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && state.measure.enabled) setMeasureEnabled(false);
+  });
   els.addCutoutBtn.addEventListener("click", () => {
     state.cutouts.push(createCutout());
     els.cutoutsDetails.open = true;

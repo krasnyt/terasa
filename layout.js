@@ -402,6 +402,43 @@ export function computeJoistLayout(config, pieces, cutouts = []) {
   return { positions, joists, cutouts: normalizedCutouts };
 }
 
+function pedestalYsForSegment(segment, config) {
+  const length = segment.y2 - segment.y1;
+  if (length <= 0.5) return [];
+
+  const edgeOffset = Math.max(0, Number(config.pedestalEdgeOffset) || 0);
+  const spacing = Math.max(100, Number(config.pedestalSpacing) || 500);
+
+  if (length <= edgeOffset * 2 + 0.5) {
+    return [segment.y1 + length / 2];
+  }
+
+  const first = segment.y1 + edgeOffset;
+  const last = segment.y2 - edgeOffset;
+  const distance = last - first;
+  const intervalCount = Math.max(1, Math.ceil(distance / spacing));
+
+  return Array.from({ length: intervalCount + 1 }, (_, index) => first + (distance * index) / intervalCount);
+}
+
+export function computePedestalLayout(config, joistLayout) {
+  const pedestals = [];
+
+  joistLayout.joists.forEach((joist, joistIndex) => {
+    joist.segments.forEach((segment, segmentIndex) => {
+      pedestalYsForSegment(segment, config).forEach((y, pedestalIndex) => {
+        pedestals.push({
+          id: `${joistIndex}-${segmentIndex}-${pedestalIndex}`,
+          x: joist.x,
+          y,
+        });
+      });
+    });
+  });
+
+  return { pedestals, count: pedestals.length };
+}
+
 export function packBoards(lengths, stockLength) {
   const boards = [];
   const sorted = lengths

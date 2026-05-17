@@ -3,10 +3,11 @@
 import {
   boardRows,
   computeJoistLayout,
+  computePedestalLayout,
   computeRowCoverage,
   cutoutYRange,
   fullLastBoardInfo,
-} from "./layout.js?v=2";
+} from "./layout.js?v=3";
 
 const svgNS = "http://www.w3.org/2000/svg";
 
@@ -195,6 +196,39 @@ export function createRenderer({ els, state, svgOrigin }) {
 
     drawSpanDim(originX + joistPositions[joistPositions.length - 1], edgeRight);
     drawTick(edgeRight);
+  }
+
+  function renderPedestals(config, joistLayout, originX, originY) {
+    const pedestalLayout = computePedestalLayout(config, joistLayout);
+    if (!pedestalLayout.count) return;
+
+    const group = svgEl("g", { class: "pedestal-layer" });
+    els.svg.appendChild(group);
+
+    pedestalLayout.pedestals.forEach((pedestal) => {
+      const cx = originX + pedestal.x;
+      const cy = originY + pedestal.y;
+      group.appendChild(svgEl("circle", {
+        class: "pedestal-dot",
+        cx,
+        cy,
+        r: 24,
+      }));
+      group.appendChild(svgEl("line", {
+        class: "pedestal-mark",
+        x1: cx - 16,
+        y1: cy,
+        x2: cx + 16,
+        y2: cy,
+      }));
+      group.appendChild(svgEl("line", {
+        class: "pedestal-mark",
+        x1: cx,
+        y1: cy - 16,
+        x2: cx,
+        y2: cy + 16,
+      }));
+    });
   }
 
   function renderCutouts(config, cutouts, originX, originY) {
@@ -556,17 +590,73 @@ export function createRenderer({ els, state, svgOrigin }) {
     });
   }
 
+  function renderMeasureOverlay() {
+    document.getElementById("measureLayer")?.remove();
+    const measure = state.measure;
+    if (!measure || !measure.points.length) return;
+
+    const start = measure.points[0];
+    const end = measure.points[1] || measure.preview;
+    const group = svgEl("g", { id: "measureLayer", class: "measure-layer" });
+    els.svg.appendChild(group);
+
+    group.appendChild(svgEl("circle", {
+      class: "measure-point",
+      cx: svgOrigin.x + start.x,
+      cy: svgOrigin.y + start.y,
+      r: 15,
+    }));
+
+    if (!end) {
+      group.appendChild(svgEl("text", {
+        class: "measure-label",
+        x: svgOrigin.x + start.x + 30,
+        y: svgOrigin.y + start.y - 24,
+      })).textContent = "1. bod";
+      return;
+    }
+
+    const x1 = svgOrigin.x + start.x;
+    const y1 = svgOrigin.y + start.y;
+    const x2 = svgOrigin.x + end.x;
+    const y2 = svgOrigin.y + end.y;
+    const distance = Math.hypot(end.x - start.x, end.y - start.y);
+    const midX = (x1 + x2) / 2;
+    const midY = (y1 + y2) / 2;
+
+    group.appendChild(svgEl("line", {
+      class: `measure-line${measure.points.length < 2 ? " is-preview" : ""}`,
+      x1,
+      y1,
+      x2,
+      y2,
+    }));
+    group.appendChild(svgEl("circle", {
+      class: "measure-point",
+      cx: x2,
+      cy: y2,
+      r: 15,
+    }));
+    group.appendChild(svgEl("text", {
+      class: "measure-label",
+      x: midX,
+      y: midY - 28,
+    })).textContent = `${Math.round(distance)} mm`;
+  }
+
   function renderSvg(config, layout, joistLayout) {
     const actualJoistLayout = asJoistLayout(config, joistLayout, state.cutouts);
     const { originX, originY } = prepareSvg(config);
     renderGaps(config, layout.rows, originX, originY);
     renderJoists(config, actualJoistLayout, originX, originY);
     layout.pieces.forEach((piece) => renderAutoPiece(piece, originX, originY));
+    renderPedestals(config, actualJoistLayout, originX, originY);
     renderScrewDots(layout.pieces, actualJoistLayout, config, originX, originY);
     renderCutouts(config, actualJoistLayout.cutouts, originX, originY);
     renderFullLastBoardExtension(config, layout, originX, originY);
     renderRowCoverage(config, layout.rows, layout.pieces, originX, originY);
     renderDimensions(config, originX, originY);
+    renderMeasureOverlay();
   }
 
   function renderManualSvg(config) {
@@ -577,11 +667,13 @@ export function createRenderer({ els, state, svgOrigin }) {
     const joistLayout = computeJoistLayout(config, state.manualPieces, state.cutouts);
     renderJoists(config, joistLayout, originX, originY);
     state.manualPieces.forEach((piece) => renderManualPiece(piece, config, originX, originY));
+    renderPedestals(config, joistLayout, originX, originY);
     renderScrewDots(state.manualPieces, joistLayout, config, originX, originY);
     renderCutouts(config, joistLayout.cutouts, originX, originY);
     renderFullLastBoardExtension(config, { rows }, originX, originY);
     renderRowCoverage(config, rows, state.manualPieces, originX, originY);
     renderDimensions(config, originX, originY);
+    renderMeasureOverlay();
   }
 
   function renderSummary(config, layout, joistLayout) {
@@ -613,6 +705,7 @@ export function createRenderer({ els, state, svgOrigin }) {
     const joistLengthMm = actualJoistLayout.joists.reduce((sum, joist) => (
       sum + joist.segments.reduce((inner, segment) => inner + Math.max(0, segment.y2 - segment.y1), 0)
     ), 0);
+    const pedestalLayout = computePedestalLayout(config, actualJoistLayout);
 
     const topItems = [
       ["Skladová prkna", `${layout.packed.length} ks`],
@@ -624,6 +717,7 @@ export function createRenderer({ els, state, svgOrigin }) {
 
     const bottomItems = [
       ["Podkladní hranoly", `${actualJoistLayout.positions.length} ks / ${(joistLengthMm / 1000).toFixed(2)} m`],
+      ["Rektifikační terče", `${pedestalLayout.count} ks`],
       ["Distanční podložky", `${spacerCount} ks`],
       ["Vruty", { html: `<span class="summary-main">${screwTotal} ks</span><span class="summary-detail">${screwBase} + ${screwReservePct} % rezerva</span>` }],
     ];
@@ -754,6 +848,7 @@ export function createRenderer({ els, state, svgOrigin }) {
   }
 
   function showBoardTooltip(event) {
+    if (state.measure?.enabled) return;
     const target = boardTooltipTarget(event);
     if (!target) {
       hideBoardTooltip();
@@ -820,6 +915,7 @@ export function createRenderer({ els, state, svgOrigin }) {
     renderManualSvg,
     renderManualWarnings,
     renderSummary,
+    renderMeasureOverlay,
     renderSvg,
     renderWarnings,
     showBoardTooltip,
