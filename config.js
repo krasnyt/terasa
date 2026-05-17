@@ -12,6 +12,7 @@ export const DEFAULTS = {
   maxJoistSpacing: 1000,
   pedestalEdgeOffset: 300,
   pedestalSpacing: 500,
+  manualPieceLength: 2300,
 };
 
 export const STORAGE_KEY = "terasa-navrh";
@@ -34,12 +35,13 @@ function savedNumber(value, fallback, options = {}) {
 export function loadConfig() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+    const boardLength = savedNumber(saved.boardLength, DEFAULTS.boardLength);
     return {
       ...DEFAULTS,
       ...saved,
       terraceLength: savedNumber(saved.terraceLength, DEFAULTS.terraceLength),
       terraceWidth: savedNumber(saved.terraceWidth, DEFAULTS.terraceWidth),
-      boardLength: savedNumber(saved.boardLength, DEFAULTS.boardLength),
+      boardLength,
       boardWidth: savedNumber(saved.boardWidth, DEFAULTS.boardWidth),
       gap: savedNumber(saved.gap, DEFAULTS.gap, { allowZero: true }),
       minOffcut: savedNumber(saved.minOffcut, DEFAULTS.minOffcut, { allowZero: true }),
@@ -48,6 +50,7 @@ export function loadConfig() {
       maxJoistSpacing: Math.max(100, savedNumber(saved.maxJoistSpacing, DEFAULTS.maxJoistSpacing)),
       pedestalEdgeOffset: savedNumber(saved.pedestalEdgeOffset, DEFAULTS.pedestalEdgeOffset, { allowZero: true }),
       pedestalSpacing: Math.max(100, savedNumber(saved.pedestalSpacing, DEFAULTS.pedestalSpacing)),
+      manualPieceLength: savedNumber(saved.manualPieceLength, boardLength),
     };
   } catch {
     return { ...DEFAULTS };
@@ -66,6 +69,7 @@ export function applyConfig(inputs, config) {
   inputs.maxJoistSpacing.value = config.maxJoistSpacing;
   inputs.pedestalEdgeOffset.value = config.pedestalEdgeOffset;
   inputs.pedestalSpacing.value = config.pedestalSpacing;
+  inputs.manualPieceLength.value = config.manualPieceLength;
 }
 
 export function readConfig(inputs) {
@@ -81,5 +85,6 @@ export function readConfig(inputs) {
     maxJoistSpacing: Math.max(100, numberValue(inputs.maxJoistSpacing, DEFAULTS.maxJoistSpacing)),
     pedestalEdgeOffset: Math.max(0, Number(inputs.pedestalEdgeOffset.value) || 0),
     pedestalSpacing: Math.max(100, numberValue(inputs.pedestalSpacing, DEFAULTS.pedestalSpacing)),
+    manualPieceLength: numberValue(inputs.manualPieceLength, inputs.boardLength.value || DEFAULTS.boardLength),
   };
 }

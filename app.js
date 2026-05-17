@@ -1,6 +1,6 @@
 "use strict";
 
-import { applyConfig, loadConfig, readConfig, STORAGE_KEY } from "./config.js?v=3";
+import { applyConfig, loadConfig, readConfig, STORAGE_KEY } from "./config.js?v=4";
 import {
   boardRows,
   computeJoistLayout,
@@ -28,6 +28,7 @@ const inputs = {
   maxJoistSpacing: qs("#maxJoistSpacing"),
   pedestalEdgeOffset: qs("#pedestalEdgeOffset"),
   pedestalSpacing: qs("#pedestalSpacing"),
+  manualPieceLength: qs("#manualPieceLength"),
 };
 
 const els = {
