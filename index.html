@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Plánovač pokládky terasy</title>
-    <link rel="stylesheet" href="styles.css?v=30" />
+    <link rel="stylesheet" href="styles.css?v=38" />
   </head>
   <body>
     <main class="app-shell">
@@ -143,10 +143,13 @@
             <h2>Návrh pokládky</h2>
             <p>Změna vstupu okamžitě přepočítá řezný plán i vizualizaci.</p>
           </div>
-          <div class="legend">
-            <span><i class="legend-board"></i> prkno</span>
-            <span><i class="legend-gap"></i> mezera</span>
-            <span><i class="legend-seam"></i> rez</span>
+          <div class="workspace-actions">
+            <button id="pdfExportBtn" class="pdf-export-btn" type="button">Export PDF</button>
+            <div class="legend">
+              <span><i class="legend-board"></i> prkno</span>
+              <span><i class="legend-gap"></i> mezera</span>
+              <span><i class="legend-seam"></i> rez</span>
+            </div>
           </div>
         </header>
 
@@ -186,6 +189,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=41" defer></script>
+    <script type="module" src="app.js?v=51"></script>
   </body>
 </html>

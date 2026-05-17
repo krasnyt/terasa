@@ -5,7 +5,8 @@ Tento soubor je průběžný popis funkcí aplikace. Při každém přidání, z
 ## Základ aplikace
 
 - Jednostránková webová aplikace bez build kroku.
-- Zdrojové soubory jsou `index.html`, `styles.css` a `app.js`.
+- Zdrojové soubory jsou `index.html`, `styles.css`, `app.js`, `config.js`, `layout.js`, `render.js` a `manual.js`.
+- JavaScript běží jako ES moduly bez build kroku. `app.js` je vstupní bod pro inicializaci, přepínání režimů, ukládání a hlavní render orchestraci.
 - Aplikace slouží k interaktivnímu návrhu pokládky terasy z prken.
 - Všechny vstupy se přepočítávají živě při změně hodnot.
 
@@ -77,6 +78,7 @@ Aplikace nabízí tři režimy přepínatelné segmentovaným tlačítkem „Aut
 - Aplikace počítá pozice podkladních hranolovníků: hranol musí být pod každou sparou (místem, kde se setkají dva díly v jedné řadě) a navíc ve vzdálenosti dané vstupem „Odsazení krajních hranolovníků" od každého kraje terasy.
 - Pozice hranolovníků jsou unikátní x-souřadnice přes všechny řady vzoru.
 - Ve výkresu jsou hranolovníky zobrazeny jako svislé přerušované čáry v hnědo-oranžové barvě. Jsou vykresleny pod prkny, takže jsou viditelné pouze v mezerách mezi řadami — prkna je překrývají.
+- **Kotvící body vrutů:** v každém průniku prkna s hranolem jsou na prkně dvě malé černé tečky (jeden vrut u horního, druhý u dolního okraje prkna). Tečky odpovídají dvěma vrutům, kterými je prkno přichycené k hranolu. Když hranol leží přesně ve spáře dvou prken (resp. v mezeře mezi nimi, do vzdálenosti `Mezera` od kraje prkna), patří k oběma sousedním prknům — body se posunou o `edgeInset` (≈ 18 mm) dovnitř od kraje příslušného prkna, takže ve spáře jsou viditelné celkem **4 body** (2 vlevo od osy hranolu pro levé prkno, 2 vpravo pro pravé prkno). Stejnou tolerancí `±Mezera` se řídí i počítání vrutů ve výstupu, aby vizualizace a číslo souhlasily.
 - Nad terasou jsou tick marky a kóty vzdáleností mezi všemi sousedními hranolovníky, včetně kót od okraje terasy k prvnímu a poslednímu hranolu.
 
 ## Vizualizace
@@ -101,6 +103,8 @@ Aplikace nabízí tři režimy přepínatelné segmentovaným tlačítkem „Aut
 
 Panel „Výstup" je rozdělen vodorovnou čárou na dvě sekce. Nad čárou je obecná spotřeba materiálu, pod čárou navazující drobný materiál (hranoly a spojovací prvky).
 
+V hlavičce výkresu je tlačítko „Export PDF". Po kliknutí aplikace sestaví tiskový list A4 na šířku s aktuálním režimem, vstupními hodnotami, výkresem, výstupem, řezným plánem a poznámkami. Řezný plán se v PDF při sestavení rozdělí do 1–4 samostatných sloupců podle počtu skladových prken; pruhy řezů se v PDF generují jako inline SVG, aby se zobrazily i při tisku bez CSS pozadí. Celý obsah se před otevřením tiskového dialogu zmenší tak, aby se vešel na jednu stránku; PDF se uloží přes systémovou volbu tisku „Uložit jako PDF".
+
 **Nad čárou:**
 - Počet skladových prken potřebných k nákupu.
 - Počet položených řad.
@@ -124,5 +128,5 @@ Panel „Výstup" je rozdělen vodorovnou čárou na dvě sekce. Nad čárou je 
 - Aplikace běží jako statický web.
 - Lokálně ji lze spustit například přes `python3 -m http.server 8765`.
 - Prohlížečová cache je obcházená verzemi u `styles.css` a `app.js`.
-- Výchozí hodnoty všech vstupů jsou definované v objektu `DEFAULTS` v `app.js`. Při startu se načtou z `localStorage` (klíč `terasa-navrh`), při nedostupnosti se použijí `DEFAULTS`. Při každé změně vstupu se hodnoty po 5 sekundách automaticky uloží zpět.
+- Výchozí hodnoty všech vstupů jsou definované v objektu `DEFAULTS` v `config.js`. Při startu se načtou z `localStorage` (klíč `terasa-navrh`), při nedostupnosti se použijí `DEFAULTS`. Při každé změně vstupu se hodnoty po 5 sekundách automaticky uloží zpět.
 - Git repozitář používá české texty commitů.
