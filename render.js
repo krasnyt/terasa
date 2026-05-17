@@ -707,6 +707,7 @@ export function createRenderer({ els, state, svgOrigin }) {
       sum + joist.segments.reduce((inner, segment) => inner + Math.max(0, segment.y2 - segment.y1), 0)
     ), 0);
     const pedestalLayout = computePedestalLayout(config, actualJoistLayout);
+    const turboScrewCount = pedestalLayout.count * 4;
 
     const topItems = [
       ["Skladová prkna", `${layout.packed.length} ks`],
@@ -719,6 +720,7 @@ export function createRenderer({ els, state, svgOrigin }) {
     const bottomItems = [
       ["Podkladní hranoly", `${actualJoistLayout.positions.length} ks / ${(joistLengthMm / 1000).toFixed(2)} m`],
       ["Rektifikační terče", `${pedestalLayout.count} ks`],
+      ["Turbošrouby", `${turboScrewCount} ks`],
       ["Distanční podložky", `${spacerCount} ks`],
       ["Vruty", { html: `<span class="summary-main">${screwTotal} ks</span><span class="summary-detail">${screwBase} + ${screwReservePct} % rezerva</span>` }],
     ];
@@ -885,15 +887,15 @@ export function createRenderer({ els, state, svgOrigin }) {
     els.boardTooltip.classList.remove("is-visible");
   }
 
-  function showResizeTooltip(e, length) {
+  function showResizeTooltip(e, value, label = "Délka") {
     const row = document.createElement("div");
     row.className = "board-tooltip-row";
     const lbl = document.createElement("span");
     lbl.className = "board-tooltip-label";
-    lbl.textContent = "Délka";
+    lbl.textContent = label;
     const val = document.createElement("strong");
     val.className = "board-tooltip-value";
-    val.textContent = `${Math.round(length)} mm`;
+    val.textContent = `${Math.round(value)} mm`;
     row.append(lbl, val);
     els.boardTooltip.replaceChildren(row);
     els.boardTooltip.classList.add("is-visible");

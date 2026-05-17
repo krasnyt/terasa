@@ -63,6 +63,7 @@ Aplikace nabízí tři režimy přepínatelné segmentovaným tlačítkem „Aut
 - **Snap:** Při přetahování se prkno automaticky přichytí k nejbližší hraně sousedního prkna (s mezerou) nebo k okraji terasy, pokud je kurzor blíže než ~22 px v SVG souřadnicích.
 - Přetažením lze i přesouvat již umístěná prkna. Prkno se drží v místě úchopu — poloha levého kraje se přepočítává jako `kurzor − offset_úchopu`, takže prkno se pohybuje relativně bez skoku.
 - **Změna velikosti:** Uchopením levého nebo pravého kraje prkna (do ~22 px od okraje v datových souřadnicích, včetně oblasti v mezeře mimo rect) lze prkno zmenšit nebo zvětšit. Minimum = min. odřezek, maximum = délka skladového prkna. Kurzor se při přiblížení ke kraji změní na `ew-resize`. Během tažení se zobrazuje tooltip s aktuální délkou.
+- **Posun spáry / hranolovníku:** Uchopením spáry nebo některého z dvojice hranolů u spáry lze v ručním režimu posunout napojení. Pokud stejnou pozici spáry používá více řad, posunou se všechny tyto spáry najednou, takže se neponechá původní dvojice hranolů jen kvůli staré poloze v ostatních řadách. Levá a pravá prkna se proti sobě zkrátí/prodlouží, mezera mezi nimi zůstane zachovaná a délky dílů respektují minimum odřezku i maximální délku skladového prkna. Po posunu se textarea řad, hranoly, terče a vruty přepočítají podle nové polohy spáry.
 - Kliknutí (pohyb < 8 px) na umístěné prkno ho odebere.
 - **Přesah:** Prkno, které přesahuje mimo rozměry terasy, je zvýrazněno červeným okrajem a přesahující část je překryta červeným poloprůsvitným pruhem s popiskem (např. `+230 mm`). Varování na přesahy jsou také v sekci Poznámky.
 - Ručně umístěná prkna se ukládají do localStorage.
@@ -128,6 +129,7 @@ V hlavičce výkresu je tlačítko „Export PDF". Po kliknutí aplikace sestav�
 **Pod čárou:**
 - Počet podkladních hranolovníků a jejich celková délka v metrech. U zadaných zářezů je délka počítaná jako součet skutečných úseků včetně prodloužení do zářezů, ne jako počet × celá šířka terasy.
 - Počet rektifikačních terčů pod podkladními hranoly.
+- Počet turbošroubů pro kotvení rektifikačních terčů. Počítá se jako `počet terčů × 4`.
 - Počet distančních podložek. Spočítá se po řadách jako `počet prken v řadě + 1` (každá spára mezi dvěma prkny + jedna podložka na každém kraji řady). Prázdné řady se nezapočítávají.
 - Počet vrutů. Pro každé prkno se sečte počet podkladních hranolů, které pod ním procházejí (včetně samostatných hranolů u vnitřních konců prken), a vynásobí se dvěma (dva vruty na každý záchyt). Výsledek se navýší o 10 % rezervu a zaokrouhlí nahoru na celé desítky. Ve výpisu je vidět základní počet i procento rezervy.
 - Řezný plán pro jednotlivá skladová prkna.

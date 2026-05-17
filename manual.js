@@ -1,6 +1,11 @@
 "use strict";
 
-import { boardRows, parseManualText, serializeManualPieces } from "./layout.js";
+import {
+  boardRows,
+  JOIST_BOARD_END_INSET,
+  parseManualText,
+  serializeManualPieces,
+} from "./layout.js";
 import { svgEl } from "./render.js";
 
 export function createManualController({
@@ -75,6 +80,95 @@ export function createManualController({
     document.getElementById("manualPreviewRect")?.remove();
   }
 
+  function adjacentManualSeams(config) {
+    const seams = [];
+    const rows = boardRows(config);
+    rows.forEach((row) => {
+      const rowPieces = state.manualPieces
+        .filter((piece) => piece.row === row.index)
+        .slice()
+        .sort((a, b) => a.x - b.x);
+
+      for (let i = 1; i < rowPieces.length; i += 1) {
+        const left = rowPieces[i - 1];
+        const right = rowPieces[i];
+        const actualGap = right.x - (left.x + left.length);
+        if (Math.abs(actualGap - config.gap) <= Math.max(1, config.gap + 0.5)) {
+          seams.push({ row, left, right, x: right.x });
+        }
+      }
+    });
+    return seams;
+  }
+
+  function manualSeamGroups(config) {
+    const groups = new Map();
+    adjacentManualSeams(config).forEach((seam) => {
+      const key = Math.round(seam.x);
+      if (!groups.has(key)) groups.set(key, { x: key, seams: [] });
+      groups.get(key).seams.push(seam);
+    });
+    return Array.from(groups.values()).sort((a, b) => a.x - b.x);
+  }
+
+  function seamGroupAtData(data, config, threshold) {
+    let best = null;
+    let bestDist = threshold;
+    manualSeamGroups(config).forEach((group) => {
+      group.seams.forEach((seam) => {
+        const rowTop = seam.row.y;
+        const rowBottom = seam.row.y + seam.row.width;
+        const yDist = data.y < rowTop ? rowTop - data.y : Math.max(0, data.y - rowBottom);
+        if (yDist > threshold) return;
+
+        const leftJoistX = seam.left.x + seam.left.length - JOIST_BOARD_END_INSET;
+        const rightJoistX = seam.right.x + JOIST_BOARD_END_INSET;
+        const xDist = Math.min(
+          Math.abs(data.x - group.x),
+          Math.abs(data.x - leftJoistX),
+          Math.abs(data.x - rightJoistX),
+        );
+        const dist = Math.hypot(xDist, Math.min(yDist, threshold));
+        if (dist < bestDist) {
+          best = group;
+          bestDist = dist;
+        }
+      });
+    });
+    return best;
+  }
+
+  function handleSeamMove(e) {
+    const config = readConfig();
+    const data = clientToSvgData(e.clientX, e.clientY);
+    if (!data) return;
+
+    const minRightX = Math.max(...dragState.items.map((item) => Math.max(
+      item.leftX + config.minOffcut + config.gap,
+      item.rightEnd - config.boardLength,
+    )));
+    const maxRightX = Math.min(...dragState.items.map((item) => Math.min(
+      item.leftX + config.boardLength + config.gap,
+      item.rightEnd - config.minOffcut,
+    )));
+    if (minRightX > maxRightX) return;
+
+    const rightX = Math.max(minRightX, Math.min(maxRightX, data.x - dragState.grabOffsetX));
+    dragState.items.forEach((item) => {
+      const left = state.manualPieces.find((p) => p.id === item.leftId);
+      const right = state.manualPieces.find((p) => p.id === item.rightId);
+      if (!left || !right) return;
+
+      left.x = item.leftX;
+      left.length = rightX - config.gap - item.leftX;
+      right.x = rightX;
+      right.length = item.rightEnd - rightX;
+    });
+
+    renderer.showResizeTooltip(e, rightX, `Spára (${dragState.items.length} řad)`);
+    renderer.renderManualSvg(config);
+  }
+
   function handleResizeMove(e) {
     const config = readConfig();
     const piece = state.manualPieces.find((p) => p.id === dragState.pieceId);
@@ -97,9 +191,18 @@ export function createManualController({
 
   function onDragMove(e) {
     if (!dragState) return;
+    if (pointerDownInfo) {
+      const moved = Math.hypot(e.clientX - pointerDownInfo.x, e.clientY - pointerDownInfo.y);
+      if (moved >= 8) pointerDownInfo.didDrag = true;
+    }
 
     if (dragState.type === "resize-right" || dragState.type === "resize-left") {
       handleResizeMove(e);
+      return;
+    }
+
+    if (dragState.type === "seam") {
+      handleSeamMove(e);
       return;
     }
 
@@ -129,7 +232,7 @@ export function createManualController({
       ? Math.hypot(e.clientX - pointerDownInfo.x, e.clientY - pointerDownInfo.y)
       : 999;
 
-    if (dragState?.type === "resize-right" || dragState?.type === "resize-left") {
+    if (dragState?.type === "resize-right" || dragState?.type === "resize-left" || dragState?.type === "seam") {
       renderer.hideBoardTooltip();
       syncManualTextFromPieces();
       scheduleSave();
@@ -139,7 +242,7 @@ export function createManualController({
       return;
     }
 
-    if (dragState?.type === "move" && moved < 8) {
+    if (dragState?.type === "move" && moved < 8 && !pointerDownInfo?.didDrag) {
       state.manualPieces = state.manualPieces.filter((p) => p.id !== dragState.pieceId);
       dragState = null;
       pointerDownInfo = null;
@@ -225,6 +328,28 @@ export function createManualController({
     document.addEventListener("pointerup", onDragEnd);
   }
 
+  function startSeamDrag(e, group) {
+    e.preventDefault();
+    const data = clientToSvgData(e.clientX, e.clientY);
+    dragState = {
+      type: "seam",
+      originalX: group.x,
+      grabOffsetX: data ? data.x - group.x : 0,
+      items: group.seams.map((seam) => ({
+        leftId: seam.left.id,
+        rightId: seam.right.id,
+        leftX: seam.left.x,
+        rightEnd: seam.right.x + seam.right.length,
+      })),
+      previewX: null,
+      previewRow: null,
+    };
+    els.svg.style.cursor = "col-resize";
+    pointerDownInfo = { x: e.clientX, y: e.clientY };
+    document.addEventListener("pointermove", onDragMove);
+    document.addEventListener("pointerup", onDragEnd);
+  }
+
   function updatePaletteLabel() {
     const config = readConfig();
     const len = Number(els.manualPieceLength.value) || config.boardLength;
@@ -249,6 +374,9 @@ export function createManualController({
       const data = clientToSvgData(e.clientX, e.clientY);
       if (!data) return;
       const thr = getSnapThresholdMm();
+      const config = readConfig();
+      const seamGroup = seamGroupAtData(data, config, thr);
+      if (seamGroup) { startSeamDrag(e, seamGroup); return; }
 
       for (const piece of state.manualPieces) {
         if (data.y < piece.y - 4 || data.y > piece.y + piece.width + 4) continue;
@@ -271,6 +399,11 @@ export function createManualController({
       const data = clientToSvgData(e.clientX, e.clientY);
       if (!data) return;
       const thr = getSnapThresholdMm();
+      const config = readConfig();
+      if (seamGroupAtData(data, config, thr)) {
+        els.svg.style.cursor = "col-resize";
+        return;
+      }
       let cursor = "";
       for (const piece of state.manualPieces) {
         if (data.y < piece.y || data.y > piece.y + piece.width) continue;

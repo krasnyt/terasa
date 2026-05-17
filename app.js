@@ -8,8 +8,8 @@ import {
   createAutoLayout,
   packBoards,
 } from "./layout.js?v=4";
-import { createManualController } from "./manual.js";
-import { createRenderer } from "./render.js?v=8";
+import { createManualController } from "./manual.js?v=4";
+import { createRenderer } from "./render.js?v=10";
 
 const qs = (selector) => document.querySelector(selector);
 
