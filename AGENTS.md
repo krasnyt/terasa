@@ -5,10 +5,11 @@ Tento soubor je průběžný popis funkcí aplikace. Při každém přidání, z
 ## Základ aplikace
 
 - Jednostránková webová aplikace bez build kroku.
-- Zdrojové soubory jsou `index.html`, `styles.css`, `app.js`, `config.js`, `layout.js`, `render.js` a `manual.js`.
+- Zdrojové soubory jsou `index.html`, `styles.css`, `app.js`, `config.js`, `layout.js`, `render.js`, `manual.js` a `favicon.svg`.
 - JavaScript běží jako ES moduly bez build kroku. `app.js` je vstupní bod pro inicializaci, přepínání režimů, ukládání a hlavní render orchestraci.
 - Aplikace slouží k interaktivnímu návrhu pokládky terasy z prken.
 - Všechny vstupy se přepočítávají živě při změně hodnot.
+- Prohlížeč používá SVG faviconu s motivem terasových prken.
 
 ## Vstupy
 

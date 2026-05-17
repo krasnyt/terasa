@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Plánovač pokládky terasy">
+  <rect width="64" height="64" rx="14" fill="#24362f"/>
+  <path d="M12 16h40v32H12z" fill="#e7d3ad"/>
+  <path d="M12 16h40v8H12zm0 12h40v8H12zm0 12h40v8H12z" fill="#c98a48"/>
+  <path d="M20 16v8m12 4v8m14 4v8" stroke="#6f4526" stroke-width="3" stroke-linecap="round"/>
+  <path d="M12 24h40M12 36h40" stroke="#24362f" stroke-width="2"/>
+  <path d="M10 52h44" stroke="#f1f5f0" stroke-width="4" stroke-linecap="round"/>
+</svg>
