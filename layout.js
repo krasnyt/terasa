@@ -1,5 +1,7 @@
 "use strict";
 
+export const JOIST_BOARD_END_INSET = 18;
+
 export function boardRows(config) {
   const pitch = config.boardWidth + config.gap;
   const rows = Math.max(1, Math.ceil((config.terraceWidth + config.gap) / pitch));
@@ -322,15 +324,23 @@ export function computeRowCoverage(rowIndex, pieces, config) {
 }
 
 export function computeJoistPositions(config, pieces) {
-  const seamSet = new Set();
-  pieces.forEach((piece) => {
-    if (piece.x > 0.5) seamSet.add(Math.round(piece.x));
-  });
-
   const half = Math.round(config.terraceLength / 2);
   const leftEdge = Math.min(config.joistEdgeOffset, half);
   const rightEdge = Math.max(config.terraceLength - config.joistEdgeOffset, leftEdge + 1);
-  const all = new Set([leftEdge, ...seamSet, rightEdge]);
+  const all = new Set([leftEdge, rightEdge]);
+  const clampX = (x) => Math.max(0, Math.min(config.terraceLength, x));
+
+  pieces.forEach((piece) => {
+    const left = Number(piece.x) || 0;
+    const right = left + (Number(piece.length) || 0);
+    if (left > 0.5 && left < config.terraceLength - 0.5) {
+      all.add(Math.round(clampX(left + JOIST_BOARD_END_INSET)));
+    }
+    if (right > 0.5 && right < config.terraceLength - 0.5) {
+      all.add(Math.round(clampX(right - JOIST_BOARD_END_INSET)));
+    }
+  });
+
   return Array.from(all).sort((a, b) => a - b);
 }
 

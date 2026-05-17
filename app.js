@@ -7,9 +7,9 @@ import {
   computeOptimalLayout,
   createAutoLayout,
   packBoards,
-} from "./layout.js?v=3";
+} from "./layout.js?v=4";
 import { createManualController } from "./manual.js";
-import { createRenderer } from "./render.js?v=7";
+import { createRenderer } from "./render.js?v=8";
 
 const qs = (selector) => document.querySelector(selector);
 

@@ -44,8 +44,8 @@ Aplikace nabízí tři režimy přepínatelné segmentovaným tlačítkem „Aut
 
 ### Ideální
 
-- Aplikace spočítá rozložení řezů tak, aby hranoly mohly být od sebe nejvýše „Max. rozteč hranolů" (výchozí 1000 mm).
-- Spáry prken jsou vždy přímo pod hranoly — rozteč hranolů = délka dílu.
+- Aplikace spočítá rozložení řezů tak, aby díly nepřekročily „Max. rozteč hranolů" (výchozí 1000 mm).
+- U napojení dvou prken na délku neleží spára na jednom sdíleném hranolu. Aplikace kolem spáry vloží dva hranoly: jeden pro konec levého prkna a jeden pro začátek pravého prkna.
 - **Žádné dvě sousední řady nemají spáry na stejných pozicích.** Liché řady jsou posunuty o `max(minOffcut, floor(maxSpan/2))` mm. Pokud posun nelze splnit (příliš malá rozteč), aplikace na to upozorní a použije jednotný vzor.
 - Díly jsou řezány greedy algoritmem: každý díl je co nejdelší (min(délka prkna, max. rozteč)), přičemž se hlídá, aby poslední díl nebyl kratší než minimální odřezek. Pokud to nelze zajistit, zobrazí se chyba.
 - Vstup „Max. rozteč hranolů" je dostupný pouze v tomto režimu.
@@ -83,11 +83,11 @@ Aplikace nabízí tři režimy přepínatelné segmentovaným tlačítkem „Aut
 
 ## Podkladní hranoly
 
-- Aplikace počítá pozice podkladních hranolovníků: hranol musí být pod každou sparou (místem, kde se setkají dva díly v jedné řadě) a navíc ve vzdálenosti dané vstupem „Odsazení krajních hranolovníků" od každého kraje terasy.
+- Aplikace počítá pozice podkladních hranolovníků: u vnitřních konců prken je vždy samostatný hranol odsazený přibližně 18 mm dovnitř od konce prkna. U napojení dvou prken na délku tak vznikne dvojice hranolů kolem spáry, aby měl každý konec vlastní kotvení. Navíc jsou hranoly ve vzdálenosti dané vstupem „Odsazení krajních hranolovníků" od každého kraje terasy.
 - Pozice hranolovníků jsou unikátní x-souřadnice přes všechny řady vzoru.
 - Pokud je zadaný zářez, hranolovník v jeho X rozsahu se prodlouží ven od základního obdélníku terasy podle hloubky zářezu. Kóty mezi hranolovníky zůstávají podle X souřadnic, ale celková délka hranolů vychází ze skutečných úseků včetně prodloužení do zářezu.
 - Ve výkresu jsou hranolovníky zobrazeny jako svislé přerušované čáry v hnědo-oranžové barvě. Jsou vykresleny pod prkny, takže jsou viditelné pouze v mezerách mezi řadami — prkna je překrývají.
-- **Kotvící body vrutů:** v každém průniku prkna s hranolem jsou na prkně dvě malé černé tečky (jeden vrut u horního, druhý u dolního okraje prkna). Tečky odpovídají dvěma vrutům, kterými je prkno přichycené k hranolu. Když hranol leží přesně ve spáře dvou prken (resp. v mezeře mezi nimi, do vzdálenosti `Mezera` od kraje prkna), patří k oběma sousedním prknům — body se posunou o `edgeInset` (≈ 18 mm) dovnitř od kraje příslušného prkna, takže ve spáře jsou viditelné celkem **4 body** (2 vlevo od osy hranolu pro levé prkno, 2 vpravo pro pravé prkno). Stejnou tolerancí `±Mezera` se řídí i počítání vrutů ve výstupu, aby vizualizace a číslo souhlasily.
+- **Kotvící body vrutů:** v každém průniku prkna s hranolem jsou na prkně dvě malé černé tečky (jeden vrut u horního, druhý u dolního okraje prkna). Tečky odpovídají dvěma vrutům, kterými je prkno přichycené k hranolu. U napojení dvou prken vzniknou dva hranoly kolem spáry: konec levého prkna se kotví do levého hranolu a začátek pravého prkna do pravého hranolu. Body jsou odsazené přibližně 18 mm od konce příslušného prkna, takže ve spáře jsou viditelné celkem **4 body**, ale každý pár patří k vlastnímu hranolu.
 - **Rektifikační terče:** pod každým úsekem podkladního hranolu se vykreslí modré značky terčů. První a poslední terč úseku jsou od jeho krajů odsazené podle vstupu „Odsazení rektifikačních terčů"; mezi nimi se terče rovnoměrně rozloží tak, aby nepřekročily vstup „Rozteč rektifikačních terčů". Pokud je úsek kratší než dvojnásobek odsazení, vykreslí se jeden terč uprostřed úseku.
 - Nad terasou jsou tick marky a kóty vzdáleností mezi všemi sousedními hranolovníky, včetně kót od okraje terasy k prvnímu a poslednímu hranolu.
 
@@ -129,7 +129,7 @@ V hlavičce výkresu je tlačítko „Export PDF". Po kliknutí aplikace sestav�
 - Počet podkladních hranolovníků a jejich celková délka v metrech. U zadaných zářezů je délka počítaná jako součet skutečných úseků včetně prodloužení do zářezů, ne jako počet × celá šířka terasy.
 - Počet rektifikačních terčů pod podkladními hranoly.
 - Počet distančních podložek. Spočítá se po řadách jako `počet prken v řadě + 1` (každá spára mezi dvěma prkny + jedna podložka na každém kraji řady). Prázdné řady se nezapočítávají.
-- Počet vrutů. Pro každé prkno se sečte počet podkladních hranolů, které pod ním procházejí (včetně hranolů na obou koncích prkna na spáře), a vynásobí se dvěma (dva vruty na každý záchyt). Výsledek se navýší o 10 % rezervu a zaokrouhlí nahoru na celé desítky. Ve výpisu je vidět základní počet i procento rezervy.
+- Počet vrutů. Pro každé prkno se sečte počet podkladních hranolů, které pod ním procházejí (včetně samostatných hranolů u vnitřních konců prken), a vynásobí se dvěma (dva vruty na každý záchyt). Výsledek se navýší o 10 % rezervu a zaokrouhlí nahoru na celé desítky. Ve výpisu je vidět základní počet i procento rezervy.
 - Řezný plán pro jednotlivá skladová prkna.
 - V řezném plánu má každé skladové prkno stejnou vizuální délku.
 - Řezný plán ukazuje jednotlivé řezy a odpad pro každé skladové prkno.
