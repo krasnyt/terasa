@@ -65,6 +65,39 @@ function buildRowLengths(config, patternIndex, stagger) {
   return { lengths };
 }
 
+function placeRowPieces(config, row, lengths, idPrefix, patternIndex, pieces) {
+  if (config.layDirection === "right") {
+    let x = config.terraceLength;
+    lengths.forEach((length) => {
+      x -= length;
+      pieces.push({
+        id: `${idPrefix}-${row.index}-${pieces.length}`,
+        row: row.index,
+        x,
+        y: row.y,
+        length,
+        width: row.width,
+        patternIndex,
+      });
+    });
+    return;
+  }
+
+  let x = 0;
+  lengths.forEach((length) => {
+    pieces.push({
+      id: `${idPrefix}-${row.index}-${pieces.length}`,
+      row: row.index,
+      x,
+      y: row.y,
+      length,
+      width: row.width,
+      patternIndex,
+    });
+    x += length;
+  });
+}
+
 export function createAutoLayout(config) {
   const rows = boardRows(config);
   const pieces = [];
@@ -123,19 +156,7 @@ export function createAutoLayout(config) {
       }
     }
 
-    let x = 0;
-    result.lengths.forEach((length) => {
-      pieces.push({
-        id: `a-${row.index}-${pieces.length}`,
-        row: row.index,
-        x,
-        y: row.y,
-        length,
-        width: row.width,
-        patternIndex,
-      });
-      x += length;
-    });
+    placeRowPieces(config, row, result.lengths, "a", patternIndex, pieces);
   }
 
   const packed = packBoards(pieces.map((piece) => piece.length), config.boardLength);
@@ -239,19 +260,7 @@ export function computeOptimalLayout(config) {
   const pieces = [];
   for (const row of rows) {
     const lengths = (alternating && row.index % 2 === 1) ? offsetResult.lengths : baseResult.lengths;
-    let x = 0;
-    lengths.forEach((length) => {
-      pieces.push({
-        id: `o-${row.index}-${pieces.length}`,
-        row: row.index,
-        x,
-        y: row.y,
-        length,
-        width: row.width,
-        patternIndex: row.index % 4,
-      });
-      x += length;
-    });
+    placeRowPieces(config, row, lengths, "o", row.index % 4, pieces);
   }
 
   const packed = packBoards(pieces.map((p) => p.length), config.boardLength);
@@ -422,7 +431,7 @@ function pedestalYsForSegment(segment, config) {
   const length = segment.y2 - segment.y1;
   if (length <= 0.5) return [];
 
-  const edgeOffset = Math.max(0, Number(config.pedestalEdgeOffset) || 0);
+  const edgeOffset = Math.max(0, Number(config.pedestalVerticalOffset) || 0);
   const spacing = Math.max(100, Number(config.pedestalSpacing) || 500);
 
   if (length <= edgeOffset * 2 + 0.5) {

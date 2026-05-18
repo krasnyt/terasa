@@ -8,7 +8,7 @@ import {
   cutoutYRange,
   fullLastBoardInfo,
   JOIST_BOARD_END_INSET,
-} from "./layout.js?v=5";
+} from "./layout.js?v=7";
 
 const svgNS = "http://www.w3.org/2000/svg";
 

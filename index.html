@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Plánovač pokládky terasy</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-    <link rel="stylesheet" href="styles.css?v=48" />
+    <link rel="stylesheet" href="styles.css?v=51" />
   </head>
   <body>
     <main class="app-shell">
@@ -96,6 +96,22 @@
                 <button id="manualLayoutBtn" type="button">Ručně</button>
               </div>
               <button id="transferToManualBtn" class="secondary-action-btn" type="button">Přenést aktuální návrh do ručního režimu</button>
+              <label>
+                <span class="label-row">
+                  Začátek pokládky
+                  <button class="help-dot" type="button" aria-label="Nápověda k začátku pokládky" data-tooltip="Určuje, od kterého kraje se v režimech Automat a Ideální začne skládat první díl řady. Volba zprava přesune první díl k pravému okraji a zbytek řady dopočítá směrem doleva.">?</button>
+                </span>
+                <span class="radio-toggle" id="layDirection">
+                  <label>
+                    <input type="radio" name="layDirection" value="left" />
+                    <span>Zleva</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="layDirection" value="right" />
+                    <span>Zprava</span>
+                  </label>
+                </span>
+              </label>
               <div id="manualLayoutPanel" class="is-hidden">
                 <p class="hint">Zadej řady do textového pole, nebo přetáhni prkna z palety nad výkresem.</p>
               </div>
@@ -125,22 +141,24 @@
               </div>
               <label>
                 <span class="label-row">
-                  Odsazení krajních hranolovníků
-                  <button class="help-dot" type="button" aria-label="Nápověda k odsazení krajních hranolovníků" data-tooltip="Vzdálenost prvního a posledního hranolovníku od kraje terasy.">?</button>
-                </span>
-                <span class="input-unit">
-                  <input id="joistEdgeOffset" type="number" min="0" step="10" />
-                  <span>mm</span>
-                </span>
-              </label>
-              <label>
-                <span class="label-row">
                   Odsazení rektifikačních terčů
-                  <button class="help-dot" type="button" aria-label="Nápověda k odsazení rektifikačních terčů" data-tooltip="Vzdálenost prvního a posledního rektifikačního terče od okraje každého úseku podkladního hranolu.">?</button>
+                  <button class="help-dot" type="button" aria-label="Nápověda k odsazení rektifikačních terčů" data-tooltip="Odsazení zleva/zprava určuje krajní hranolovníky s terči. Odsazení shora/zdola určuje první a poslední terč na každém úseku hranolu.">?</button>
                 </span>
-                <span class="input-unit">
-                  <input id="pedestalEdgeOffset" type="number" min="0" step="10" />
-                  <span>mm</span>
+                <span class="split-input-unit">
+                  <span class="split-input-field">
+                    <span class="split-input-label">Zleva/zprava</span>
+                    <span class="input-unit">
+                      <input id="joistEdgeOffset" type="number" min="0" step="10" aria-label="Odsazení rektifikačních terčů zleva a zprava" />
+                      <span>mm</span>
+                    </span>
+                  </span>
+                  <span class="split-input-field">
+                    <span class="split-input-label">Shora/zdola</span>
+                    <span class="input-unit">
+                      <input id="pedestalVerticalOffset" type="number" min="0" step="10" aria-label="Odsazení rektifikačních terčů shora a zdola" />
+                      <span>mm</span>
+                    </span>
+                  </span>
                 </span>
               </label>
               <label>
@@ -256,6 +274,6 @@
       </section>
     </main>
 
-    <script type="module" src="app.js?v=68"></script>
+    <script type="module" src="app.js?v=71"></script>
   </body>
 </html>

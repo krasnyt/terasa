@@ -21,8 +21,8 @@ Tento soubor je průběžný popis funkcí aplikace. Při každém přidání, z
 - Minimální použitelný odřezek v milimetrech.
 - Počet řad, po kterých se má opakovat vzor spár (pouze v režimu Automat).
 - Maximální rozteč sousedních hranolů v milimetrech (pouze v režimu Ideální, výchozí 1000 mm).
-- Odsazení krajních hranolovníků od okraje terasy v milimetrech.
-- Odsazení rektifikačních terčů od krajů každého úseku podkladního hranolu v milimetrech (výchozí 300 mm).
+- Začátek pokládky automaticky generovaných řad: zleva nebo zprava. Volba se používá v režimech Automat a Ideální.
+- Odsazení rektifikačních terčů od levého/pravého okraje terasy a horního/dolního kraje každého úseku podkladního hranolu v milimetrech. Hodnota zleva/zprava zároveň určuje odsazení krajních hranolovníků.
 - Preferovaná rozteč rektifikačních terčů pod jedním hranolem v milimetrech (výchozí 500 mm).
 - U všech vstupů je ikona nápovědy s vysvětlivkou při hoveru, focusu nebo kliknutí.
 - Volitelné obdélníkové zářezy/výklenky u okrajů terasy pro místa u oken nebo dveří. Každý zářez má název, stranu (horní/dolní), vzdálenost od levého kraje, šířku a hloubku v milimetrech. Hloubka se zadává směrem ven od základního obdélníku terasy.
@@ -33,6 +33,7 @@ Tento soubor je průběžný popis funkcí aplikace. Při každém přidání, z
 Aplikace nabízí tři režimy přepínatelné segmentovaným tlačítkem „Automat" / „Ideální" / „Ručně" v panelu „Vzor pokládky". Panel „Vzor pokládky" je sbalitelný stejně jako panel „Zářezy".
 
 - V režimech Automat a Ideální je dostupné tlačítko „Přenést aktuální návrh do ručního režimu". Tlačítko zkopíruje právě spočítané díly do ručního režimu, nahradí dosavadní ručně umístěná prkna a přepne aplikaci do režimu Ručně. Pokud aktuální automatický návrh nejde sestavit, tlačítko je vypnuté.
+- Radio volba „Začátek pokládky" určuje, jestli se automaticky generované řady skládají od levého, nebo pravého okraje terasy. Při pokládce zprava je první díl řady u pravého okraje a další díly se dopočítají směrem doleva.
 
 ### Automat
 
@@ -81,16 +82,16 @@ Aplikace nabízí tři režimy přepínatelné segmentovaným tlačítkem „Aut
   - `prázdná` (šedá) — v řadě není žádné prkno.
   
   V režimech Automat a Ideální je vždy `✓ celá`, protože pokrytí je dáno konstrukcí. V ručním režimu se přepočítává živě podle textareu a drag&drop akcí.
-- Vybraný režim, typ zobrazení, ručně umístěná prkna, ručně přidané hranolovníky a zadané zářezy se ukládají do localStorage spolu s ostatními nastaveními.
+- Vybraný režim, typ zobrazení, směr začátku pokládky, ručně umístěná prkna, ručně přidané hranolovníky a zadané zářezy se ukládají do localStorage spolu s ostatními nastaveními.
 
 ## Podkladní hranoly
 
-- Aplikace počítá pozice podkladních hranolovníků: u vnitřních konců prken je vždy samostatný hranol odsazený přibližně 18 mm dovnitř od konce prkna. U napojení dvou prken na délku tak vznikne dvojice hranolů kolem spáry, aby měl každý konec vlastní kotvení. Navíc jsou hranoly ve vzdálenosti dané vstupem „Odsazení krajních hranolovníků" od každého kraje terasy.
+- Aplikace počítá pozice podkladních hranolovníků: u vnitřních konců prken je vždy samostatný hranol odsazený přibližně 18 mm dovnitř od konce prkna. U napojení dvou prken na délku tak vznikne dvojice hranolů kolem spáry, aby měl každý konec vlastní kotvení. Navíc jsou hranoly ve vzdálenosti dané hodnotou „Zleva/zprava" ve vstupu „Odsazení rektifikačních terčů" od každého kraje terasy.
 - Pozice hranolovníků jsou unikátní x-souřadnice přes všechny řady vzoru.
 - Pokud je zadaný zářez, hranolovník v jeho X rozsahu se prodlouží ven od základního obdélníku terasy podle hloubky zářezu. Kóty mezi hranolovníky zůstávají podle X souřadnic, ale celková délka hranolů vychází ze skutečných úseků včetně prodloužení do zářezu.
 - Ve výkresu jsou hranolovníky zobrazeny jako svislé přerušované čáry v hnědo-oranžové barvě. Jsou vykresleny pod prkny, takže jsou viditelné pouze v mezerách mezi řadami — prkna je překrývají.
 - **Kotvící body vrutů:** v každém průniku prkna s hranolem jsou na prkně dvě malé černé tečky (jeden vrut u horního, druhý u dolního okraje prkna). Tečky odpovídají dvěma vrutům, kterými je prkno přichycené k hranolu. U napojení dvou prken vzniknou dva hranoly kolem spáry: konec levého prkna se kotví do levého hranolu a začátek pravého prkna do pravého hranolu. Body jsou odsazené přibližně 18 mm od konce příslušného prkna, takže ve spáře jsou viditelné celkem **4 body**, ale každý pár patří k vlastnímu hranolu.
-- **Rektifikační terče:** pod každým úsekem podkladního hranolu se vykreslí modré značky terčů. První a poslední terč úseku jsou od jeho krajů odsazené podle vstupu „Odsazení rektifikačních terčů"; mezi nimi se terče rovnoměrně rozloží tak, aby nepřekročily vstup „Rozteč rektifikačních terčů". Pokud je úsek kratší než dvojnásobek odsazení, vykreslí se jeden terč uprostřed úseku.
+- **Rektifikační terče:** pod každým úsekem podkladního hranolu se vykreslí modré značky terčů. Krajní hranolovníky s terči jsou od levého a pravého okraje odsazené podle hodnoty „Zleva/zprava"; první a poslední terč každého úseku hranolu jsou od horního a dolního kraje odsazené podle hodnoty „Shora/zdola". Mezi nimi se terče rovnoměrně rozloží tak, aby nepřekročily vstup „Rozteč rektifikačních terčů". Pokud je úsek kratší než dvojnásobek odsazení shora/zdola, vykreslí se jeden terč uprostřed úseku.
 - Nad terasou jsou tick marky a kóty vzdáleností mezi všemi sousedními hranolovníky, včetně kót od okraje terasy k prvnímu a poslednímu hranolu.
 
 ## Vizualizace

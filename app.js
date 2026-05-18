@@ -1,15 +1,15 @@
 "use strict";
 
-import { applyConfig, loadConfig, readConfig, STORAGE_KEY } from "./config.js?v=4";
+import { applyConfig, loadConfig, readConfig, STORAGE_KEY } from "./config.js?v=7";
 import {
   boardRows,
   computeJoistLayout,
   computeOptimalLayout,
   createAutoLayout,
   packBoards,
-} from "./layout.js?v=5";
-import { createManualController } from "./manual.js?v=6";
-import { createRenderer } from "./render.js?v=12";
+} from "./layout.js?v=7";
+import { createManualController } from "./manual.js?v=8";
+import { createRenderer } from "./render.js?v=14";
 
 const qs = (selector) => document.querySelector(selector);
 
@@ -33,10 +33,11 @@ const inputs = {
   patternRows: qs("#patternRows"),
   joistEdgeOffset: qs("#joistEdgeOffset"),
   maxJoistSpacing: qs("#maxJoistSpacing"),
-  pedestalEdgeOffset: qs("#pedestalEdgeOffset"),
+  pedestalVerticalOffset: qs("#pedestalVerticalOffset"),
   pedestalSpacing: qs("#pedestalSpacing"),
   manualPieceLength: qs("#manualPieceLength"),
   manualJoistPosition: qs("#manualJoistPosition"),
+  layDirection: document.querySelectorAll("input[name='layDirection']"),
 };
 
 const els = {
@@ -389,8 +390,9 @@ function configRows(config) {
     ["Šířka prkna", `${Math.round(config.boardWidth)} mm`],
     ["Mezera", `${Math.round(config.gap)} mm`],
     ["Min. odřezek", `${Math.round(config.minOffcut)} mm`],
-    ["Odsazení hranolů", `${Math.round(config.joistEdgeOffset)} mm`],
-    ["Odsazení terčů", `${Math.round(config.pedestalEdgeOffset)} mm`],
+    ["Začátek pokládky", config.layDirection === "right" ? "zprava" : "zleva"],
+    ["Odsazení terčů zleva/zprava", `${Math.round(config.joistEdgeOffset)} mm`],
+    ["Odsazení terčů shora/zdola", `${Math.round(config.pedestalVerticalOffset)} mm`],
     ["Rozteč terčů", `${Math.round(config.pedestalSpacing)} mm`],
   ];
 
@@ -598,9 +600,12 @@ function handleMeasurePointerMove(event) {
 
 function bindEvents() {
   Object.values(inputs).forEach((input) => {
-    input.addEventListener("input", () => {
-      scheduleSave();
-      render();
+    const controls = typeof input.forEach === "function" ? Array.from(input) : [input];
+    controls.forEach((control) => {
+      control.addEventListener("input", () => {
+        scheduleSave();
+        render();
+      });
     });
   });
 
