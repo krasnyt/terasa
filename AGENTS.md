@@ -64,6 +64,7 @@ Aplikace nabízí tři režimy přepínatelné segmentovaným tlačítkem „Aut
 - Přetažením lze i přesouvat již umístěná prkna. Prkno se drží v místě úchopu — poloha levého kraje se přepočítává jako `kurzor − offset_úchopu`, takže prkno se pohybuje relativně bez skoku.
 - **Změna velikosti:** Uchopením levého nebo pravého kraje prkna (do ~22 px od okraje v datových souřadnicích, včetně oblasti v mezeře mimo rect) lze prkno zmenšit nebo zvětšit. Minimum = min. odřezek, maximum = délka skladového prkna. Kurzor se při přiblížení ke kraji změní na `ew-resize`. Během tažení se zobrazuje tooltip s aktuální délkou.
 - **Posun spáry / hranolovníku:** Uchopením spáry nebo některého z dvojice hranolů u spáry lze v ručním režimu posunout napojení. Pokud stejnou pozici spáry používá více řad, posunou se všechny tyto spáry najednou, takže se neponechá původní dvojice hranolů jen kvůli staré poloze v ostatních řadách. Levá a pravá prkna se proti sobě zkrátí/prodlouží, mezera mezi nimi zůstane zachovaná a délky dílů respektují minimum odřezku i maximální délku skladového prkna. Po posunu se textarea řad, hranoly, terče a vruty přepočítají podle nové polohy spáry.
+- **Ruční hranolovníky:** V ručním režimu je v paletě dostupný vstup „Ruční hranolovník", kam se zadá X pozice v milimetrech od levého kraje terasy. Tlačítko „Přidat hranolovník" vloží na danou pozici samostatný hranolovník nezávisle na spárách. Hranolovník lze také přetáhnout z chipu „Přetáhni hranolovník" přímo do výkresu; během tažení se ve výkresu zobrazí svislý náhled a aktuální X souřadnice v milimetrech. Na širokém zobrazení je tento blok napravo od textové definice řad, na užším zobrazení spadne pod ni. Přidané hranolovníky se zobrazují jako chipy s možností odebrání a započítávají se do hranolů, rektifikačních terčů, vrutů, kót i výstupu.
 - Kliknutí (pohyb < 8 px) na umístěné prkno ho odebere.
 - **Přesah:** Prkno, které přesahuje mimo rozměry terasy, je zvýrazněno červeným okrajem a přesahující část je překryta červeným poloprůsvitným pruhem s popiskem (např. `+230 mm`). Varování na přesahy jsou také v sekci Poznámky.
 - Ručně umístěná prkna se ukládají do localStorage.
@@ -80,7 +81,7 @@ Aplikace nabízí tři režimy přepínatelné segmentovaným tlačítkem „Aut
   - `prázdná` (šedá) — v řadě není žádné prkno.
   
   V režimech Automat a Ideální je vždy `✓ celá`, protože pokrytí je dáno konstrukcí. V ručním režimu se přepočítává živě podle textareu a drag&drop akcí.
-- Vybraný režim, ručně umístěná prkna a zadané zářezy se ukládají do localStorage spolu s ostatními nastaveními.
+- Vybraný režim, typ zobrazení, ručně umístěná prkna, ručně přidané hranolovníky a zadané zářezy se ukládají do localStorage spolu s ostatními nastaveními.
 
 ## Podkladní hranoly
 
@@ -112,6 +113,7 @@ Aplikace nabízí tři režimy přepínatelné segmentovaným tlačítkem „Aut
 - Tooltip prkna má pevnou strukturu a šířku, aby údaje při přejíždění mezi prkny neodskakovaly.
 - Tooltip prkna zobrazuje rozměr dílu, pozici levého horního rohu `[x;y]` vůči levému hornímu rohu terasy a číslo řady.
 - Tlačítko „Metr" v hlavičce výkresu zapne měřicí režim. První klik do SVG nastaví počáteční bod, pohyb myši ukazuje náhled a druhý klik zobrazí přímou vzdálenost dvou libovolných bodů v milimetrech. Další klik v aktivním režimu smaže poslední měření a až následující klik začne nové; klávesa Escape režim vypne.
+- V hlavičce výkresu je přepínač zobrazení „Hranoly" / „Prkna" / „Oboje". „Hranoly" skryje prkna, spáry a vruty a nechá viditelné podkladní hranoly s rektifikačními terči. „Prkna" skryje hranoly, terče a vruty a zobrazí jen prkna se spárami. „Oboje" vykreslí výkres stejně jako původní kombinované zobrazení. Volba se ukládá do localStorage.
 
 ## Výstupy
 

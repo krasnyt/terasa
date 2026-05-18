@@ -5,8 +5,8 @@ import {
   JOIST_BOARD_END_INSET,
   parseManualText,
   serializeManualPieces,
-} from "./layout.js";
-import { svgEl } from "./render.js";
+} from "./layout.js?v=5";
+import { svgEl } from "./render.js?v=12";
 
 export function createManualController({
   els,
@@ -76,8 +76,30 @@ export function createManualController({
     }));
   }
 
+  function updateJoistPreview(x, config) {
+    clearSvgPreview();
+    const group = svgEl("g", { id: "manualJoistPreview" });
+    const svgX = svgOrigin.x + x;
+    group.appendChild(svgEl("line", {
+      class: "manual-joist-preview-line",
+      x1: svgX,
+      y1: svgOrigin.y,
+      x2: svgX,
+      y2: svgOrigin.y + config.terraceWidth,
+    }));
+    const label = svgEl("text", {
+      class: "manual-joist-preview-label",
+      x: svgX + 24,
+      y: svgOrigin.y + 58,
+    });
+    label.textContent = `X ${Math.round(x)} mm`;
+    group.appendChild(label);
+    els.svg.appendChild(group);
+  }
+
   function clearSvgPreview() {
     document.getElementById("manualPreviewRect")?.remove();
+    document.getElementById("manualJoistPreview")?.remove();
   }
 
   function adjacentManualSeams(config) {
@@ -207,9 +229,18 @@ export function createManualController({
     }
 
     const config = readConfig();
-    const rows = boardRows(config);
     const data = clientToSvgData(e.clientX, e.clientY);
     if (!data) { clearSvgPreview(); return; }
+
+    if (dragState.type === "manual-joist") {
+      const x = Math.round(Math.max(0, Math.min(config.terraceLength, data.x)));
+      dragState.previewX = x;
+      updateJoistPreview(x, config);
+      renderer.showResizeTooltip(e, x, "X");
+      return;
+    }
+
+    const rows = boardRows(config);
     const row = rowAtData(data.y, rows);
     if (!row) { clearSvgPreview(); dragState.previewRow = null; return; }
     const excludeId = dragState.type === "move" ? dragState.pieceId : null;
@@ -227,6 +258,7 @@ export function createManualController({
     clearSvgPreview();
     els.svg.style.cursor = "";
     els.paletteBoardChip.classList.remove("is-dragging");
+    els.manualJoistDragChip?.classList.remove("is-dragging");
 
     const moved = pointerDownInfo
       ? Math.hypot(e.clientX - pointerDownInfo.x, e.clientY - pointerDownInfo.y)
@@ -249,6 +281,22 @@ export function createManualController({
       syncManualTextFromPieces();
       scheduleSave();
       render();
+      return;
+    }
+
+    if (dragState?.type === "manual-joist") {
+      renderer.hideBoardTooltip();
+      if (dragState.previewX !== null && moved >= 8) {
+        state.manualJoists.push({
+          id: `j-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          x: dragState.previewX,
+        });
+        if (els.manualJoistPosition) els.manualJoistPosition.value = dragState.previewX;
+        scheduleSave();
+        render();
+      }
+      dragState = null;
+      pointerDownInfo = null;
       return;
     }
 
@@ -292,6 +340,17 @@ export function createManualController({
     dragState = { type: "palette", previewX: null, previewRow: null, pieceLength };
     els.paletteBoardChip.classList.add("is-dragging");
     els.svg.style.cursor = "crosshair";
+    pointerDownInfo = { x: e.clientX, y: e.clientY };
+    document.addEventListener("pointermove", onDragMove);
+    document.addEventListener("pointerup", onDragEnd);
+  }
+
+  function startManualJoistDrag(e) {
+    if (state.layoutMode !== "manual") return;
+    e.preventDefault();
+    dragState = { type: "manual-joist", previewX: null, previewRow: null };
+    els.manualJoistDragChip?.classList.add("is-dragging");
+    els.svg.style.cursor = "col-resize";
     pointerDownInfo = { x: e.clientX, y: e.clientY };
     document.addEventListener("pointermove", onDragMove);
     document.addEventListener("pointerup", onDragEnd);
@@ -367,6 +426,7 @@ export function createManualController({
     });
 
     els.paletteBoardChip.addEventListener("pointerdown", startPaletteDrag);
+    els.manualJoistDragChip?.addEventListener("pointerdown", startManualJoistDrag);
 
     els.svg.addEventListener("pointerdown", (e) => {
       if (state.measure?.enabled) return;

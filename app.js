@@ -7,13 +7,20 @@ import {
   computeOptimalLayout,
   createAutoLayout,
   packBoards,
-} from "./layout.js?v=4";
-import { createManualController } from "./manual.js?v=4";
-import { createRenderer } from "./render.js?v=10";
+} from "./layout.js?v=5";
+import { createManualController } from "./manual.js?v=6";
+import { createRenderer } from "./render.js?v=12";
 
 const qs = (selector) => document.querySelector(selector);
 
-const state = { layoutMode: "auto", manualPieces: [], cutouts: [], measure: { enabled: false, points: [], preview: null } };
+const state = {
+  layoutMode: "auto",
+  viewMode: "both",
+  manualPieces: [],
+  manualJoists: [],
+  cutouts: [],
+  measure: { enabled: false, points: [], preview: null },
+};
 const svgOrigin = { x: 0, y: 0 };
 
 const inputs = {
@@ -29,6 +36,7 @@ const inputs = {
   pedestalEdgeOffset: qs("#pedestalEdgeOffset"),
   pedestalSpacing: qs("#pedestalSpacing"),
   manualPieceLength: qs("#manualPieceLength"),
+  manualJoistPosition: qs("#manualJoistPosition"),
 };
 
 const els = {
@@ -48,12 +56,19 @@ const els = {
   paletteBoardChip: qs("#paletteBoardChip"),
   manualPieceLength: qs("#manualPieceLength"),
   manualLayoutText: qs("#manualLayoutText"),
+  manualJoistPosition: qs("#manualJoistPosition"),
+  manualJoistDragChip: qs("#manualJoistDragChip"),
+  addManualJoistBtn: qs("#addManualJoistBtn"),
+  manualJoistsList: qs("#manualJoistsList"),
   cutoutsDetails: qs("#cutoutsDetails"),
   cutoutsCount: qs("#cutoutsCount"),
   addCutoutBtn: qs("#addCutoutBtn"),
   cutoutsList: qs("#cutoutsList"),
   measureToolBtn: qs("#measureToolBtn"),
   pdfExportBtn: qs("#pdfExportBtn"),
+  viewJoistsBtn: qs("#viewJoistsBtn"),
+  viewBoardsBtn: qs("#viewBoardsBtn"),
+  viewBothBtn: qs("#viewBothBtn"),
 };
 
 const renderer = createRenderer({ els, state, svgOrigin });
@@ -71,7 +86,9 @@ function scheduleSave() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         ...readCurrentConfig(),
         layoutMode: state.layoutMode,
+        viewMode: state.viewMode,
         manualPieces: state.manualPieces,
+        manualJoists: state.manualJoists,
         cutouts: state.cutouts,
       }));
     } catch {
@@ -134,6 +151,16 @@ function setLayoutMode(mode, options = {}) {
   els.manualPalette.classList.toggle("is-hidden", mode !== "manual");
   document.body.classList.toggle("is-manual-mode", mode === "manual");
   if (mode === "manual") manualController.syncManualTextFromPieces();
+  renderManualJoistControls();
+  if (options.save !== false) scheduleSave();
+  render();
+}
+
+function setViewMode(mode, options = {}) {
+  state.viewMode = ["joists", "boards", "both"].includes(mode) ? mode : "both";
+  els.viewJoistsBtn.classList.toggle("is-active", state.viewMode === "joists");
+  els.viewBoardsBtn.classList.toggle("is-active", state.viewMode === "boards");
+  els.viewBothBtn.classList.toggle("is-active", state.viewMode === "both");
   if (options.save !== false) scheduleSave();
   render();
 }
@@ -159,7 +186,54 @@ function transferCurrentLayoutToManual() {
     width: piece.width,
     patternIndex: piece.patternIndex,
   }));
+  state.manualJoists = [];
+  renderManualJoistControls();
   setLayoutMode("manual");
+}
+
+function normalizeManualJoists(config, joists) {
+  const values = Array.isArray(joists) ? joists : [];
+  const unique = new Map();
+  values.forEach((item) => {
+    const raw = typeof item === "number" ? item : item?.x;
+    const numeric = Number(raw);
+    if (!Number.isFinite(numeric)) return;
+    const x = Math.round(Math.max(0, Math.min(config.terraceLength, numeric)));
+    unique.set(x, { id: item?.id || `j-${x}`, x });
+  });
+  return Array.from(unique.values()).sort((a, b) => a.x - b.x);
+}
+
+function renderManualJoistControls() {
+  if (!els.manualJoistsList) return;
+  const config = readCurrentConfig();
+  state.manualJoists = normalizeManualJoists(config, state.manualJoists);
+  if (!state.manualJoists.length) {
+    els.manualJoistsList.innerHTML = "<p class=\"hint\">Zatím není přidaný žádný ruční hranolovník.</p>";
+    return;
+  }
+
+  els.manualJoistsList.innerHTML = state.manualJoists.map((joist) => `
+    <button class="manual-joist-chip" type="button" data-manual-joist-remove="${escapeHtml(joist.id)}" aria-label="Odebrat ruční hranolovník ${Math.round(joist.x)} mm">
+      ${Math.round(joist.x)} mm <span aria-hidden="true">×</span>
+    </button>
+  `).join("");
+}
+
+function addManualJoist() {
+  if (state.layoutMode !== "manual") setLayoutMode("manual");
+  const config = readCurrentConfig();
+  const raw = Number(els.manualJoistPosition.value);
+  if (!Number.isFinite(raw)) return;
+  const x = Math.round(Math.max(0, Math.min(config.terraceLength, raw)));
+  state.manualJoists = normalizeManualJoists(config, [
+    ...state.manualJoists,
+    { id: `j-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, x },
+  ]);
+  els.manualJoistPosition.value = x;
+  renderManualJoistControls();
+  scheduleSave();
+  render();
 }
 
 function createCutout() {
@@ -257,7 +331,9 @@ function render() {
     renderer.renderManualSvg(config);
     const rows = boardRows(config);
     const packed = packBoards(state.manualPieces.map((p) => p.length), config.boardLength);
-    const joistLayout = computeJoistLayout(config, state.manualPieces, state.cutouts);
+    state.manualJoists = normalizeManualJoists(config, state.manualJoists);
+    renderManualJoistControls();
+    const joistLayout = computeJoistLayout(config, state.manualPieces, state.cutouts, state.manualJoists);
     renderer.renderSummary(config, { rows, pieces: state.manualPieces, packed }, joistLayout);
     renderer.renderCutList(config, packed);
     renderer.renderManualWarnings(config, rows);
@@ -297,9 +373,16 @@ function modeLabel() {
   return "Automat";
 }
 
+function viewModeLabel() {
+  if (state.viewMode === "joists") return "Hranoly";
+  if (state.viewMode === "boards") return "Prkna";
+  return "Oboje";
+}
+
 function configRows(config) {
   const rows = [
     ["Režim", modeLabel()],
+    ["Zobrazení", viewModeLabel()],
     ["Délka terasy", `${Math.round(config.terraceLength)} mm`],
     ["Šířka terasy", `${Math.round(config.terraceWidth)} mm`],
     ["Délka prkna", `${Math.round(config.boardLength)} mm`],
@@ -313,6 +396,7 @@ function configRows(config) {
 
   if (state.layoutMode === "auto") rows.push(["Opakování vzoru", `${Math.round(config.patternRows)} řad`]);
   if (state.layoutMode === "optimal") rows.push(["Max. rozteč hranolů", `${Math.round(config.maxJoistSpacing)} mm`]);
+  if (state.layoutMode === "manual" && state.manualJoists.length) rows.push(["Ruční hranolovníky", `${state.manualJoists.length} ks`]);
   if (state.cutouts.length) rows.push(["Zářezy", `${state.cutouts.length} ks`]);
   return rows;
 }
@@ -524,6 +608,21 @@ function bindEvents() {
   els.optimalLayoutBtn.addEventListener("click", () => setLayoutMode("optimal"));
   els.manualLayoutBtn.addEventListener("click", () => setLayoutMode("manual"));
   els.transferToManualBtn.addEventListener("click", transferCurrentLayoutToManual);
+  els.addManualJoistBtn.addEventListener("click", addManualJoist);
+  els.manualJoistPosition.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") addManualJoist();
+  });
+  els.manualJoistsList.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-manual-joist-remove]");
+    if (!button) return;
+    state.manualJoists = state.manualJoists.filter((joist) => joist.id !== button.dataset.manualJoistRemove);
+    renderManualJoistControls();
+    scheduleSave();
+    render();
+  });
+  els.viewJoistsBtn.addEventListener("click", () => setViewMode("joists"));
+  els.viewBoardsBtn.addEventListener("click", () => setViewMode("boards"));
+  els.viewBothBtn.addEventListener("click", () => setViewMode("both"));
   els.measureToolBtn.addEventListener("click", () => setMeasureEnabled(!state.measure.enabled));
   els.pdfExportBtn.addEventListener("click", exportPdf);
   els.svg.addEventListener("pointerdown", handleMeasurePointerDown);
@@ -558,10 +657,13 @@ function bindEvents() {
 const savedConfig = loadConfig();
 applyConfig(inputs, savedConfig);
 state.manualPieces = Array.isArray(savedConfig.manualPieces) ? savedConfig.manualPieces : [];
+state.manualJoists = Array.isArray(savedConfig.manualJoists) ? savedConfig.manualJoists : [];
 state.cutouts = Array.isArray(savedConfig.cutouts) ? savedConfig.cutouts : [];
+state.viewMode = ["joists", "boards", "both"].includes(savedConfig.viewMode) ? savedConfig.viewMode : "both";
 renderCutoutControls();
 setupTooltips();
 bindEvents();
 
 const initialMode = ["auto", "optimal", "manual"].includes(savedConfig.layoutMode) ? savedConfig.layoutMode : "auto";
+setViewMode(state.viewMode, { save: false });
 setLayoutMode(initialMode, { save: false });

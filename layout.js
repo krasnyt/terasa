@@ -323,7 +323,7 @@ export function computeRowCoverage(rowIndex, pieces, config) {
   return { status: "short", diff: Math.max(0, -diff) || 1 };
 }
 
-export function computeJoistPositions(config, pieces) {
+export function computeJoistPositions(config, pieces, extraPositions = []) {
   const half = Math.round(config.terraceLength / 2);
   const leftEdge = Math.min(config.joistEdgeOffset, half);
   const rightEdge = Math.max(config.terraceLength - config.joistEdgeOffset, leftEdge + 1);
@@ -339,6 +339,12 @@ export function computeJoistPositions(config, pieces) {
     if (right > 0.5 && right < config.terraceLength - 0.5) {
       all.add(Math.round(clampX(right - JOIST_BOARD_END_INSET)));
     }
+  });
+
+  extraPositions.forEach((position) => {
+    const x = typeof position === "number" ? position : position?.x;
+    if (!Number.isFinite(Number(x))) return;
+    all.add(Math.round(clampX(Number(x))));
   });
 
   return Array.from(all).sort((a, b) => a - b);
@@ -395,8 +401,8 @@ function mergeTouchingSegments(segments) {
     }, []);
 }
 
-export function computeJoistLayout(config, pieces, cutouts = []) {
-  const positions = computeJoistPositions(config, pieces);
+export function computeJoistLayout(config, pieces, cutouts = [], extraPositions = []) {
+  const positions = computeJoistPositions(config, pieces, extraPositions);
   const normalizedCutouts = normalizeCutouts(cutouts, config);
   const joists = positions.map((x) => {
     let segments = [{ y1: 0, y2: config.terraceWidth }];

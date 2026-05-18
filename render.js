@@ -8,7 +8,7 @@ import {
   cutoutYRange,
   fullLastBoardInfo,
   JOIST_BOARD_END_INSET,
-} from "./layout.js?v=4";
+} from "./layout.js?v=5";
 
 const svgNS = "http://www.w3.org/2000/svg";
 
@@ -118,9 +118,9 @@ export function createRenderer({ els, state, svgOrigin }) {
     }));
   }
 
-  function asJoistLayout(config, piecesOrLayout, maybeCutouts) {
+  function asJoistLayout(config, piecesOrLayout, maybeCutouts, maybeExtraPositions) {
     if (piecesOrLayout && Array.isArray(piecesOrLayout.positions) && Array.isArray(piecesOrLayout.joists)) return piecesOrLayout;
-    return computeJoistLayout(config, piecesOrLayout || [], maybeCutouts || []);
+    return computeJoistLayout(config, piecesOrLayout || [], maybeCutouts || [], maybeExtraPositions || []);
   }
 
   function joistCoversY(joist, y, tol) {
@@ -648,14 +648,18 @@ export function createRenderer({ els, state, svgOrigin }) {
   function renderSvg(config, layout, joistLayout) {
     const actualJoistLayout = asJoistLayout(config, joistLayout, state.cutouts);
     const { originX, originY } = prepareSvg(config);
+    const showBoards = state.viewMode !== "joists";
+    const showStructure = state.viewMode !== "boards";
     renderGaps(config, layout.rows, originX, originY);
-    renderJoists(config, actualJoistLayout, originX, originY);
-    layout.pieces.forEach((piece) => renderAutoPiece(piece, originX, originY));
-    renderPedestals(config, actualJoistLayout, originX, originY);
-    renderScrewDots(layout.pieces, actualJoistLayout, config, originX, originY);
+    if (showStructure) renderJoists(config, actualJoistLayout, originX, originY);
+    if (showBoards) layout.pieces.forEach((piece) => renderAutoPiece(piece, originX, originY));
+    if (showStructure) renderPedestals(config, actualJoistLayout, originX, originY);
+    if (showBoards && showStructure) renderScrewDots(layout.pieces, actualJoistLayout, config, originX, originY);
     renderCutouts(config, actualJoistLayout.cutouts, originX, originY);
-    renderFullLastBoardExtension(config, layout, originX, originY);
-    renderRowCoverage(config, layout.rows, layout.pieces, originX, originY);
+    if (showBoards) {
+      renderFullLastBoardExtension(config, layout, originX, originY);
+      renderRowCoverage(config, layout.rows, layout.pieces, originX, originY);
+    }
     renderDimensions(config, originX, originY);
     renderMeasureOverlay();
   }
@@ -663,16 +667,20 @@ export function createRenderer({ els, state, svgOrigin }) {
   function renderManualSvg(config) {
     const { originX, originY } = prepareSvg(config);
     const rows = boardRows(config);
+    const showBoards = state.viewMode !== "joists";
+    const showStructure = state.viewMode !== "boards";
     renderGaps(config, rows, originX, originY);
 
-    const joistLayout = computeJoistLayout(config, state.manualPieces, state.cutouts);
-    renderJoists(config, joistLayout, originX, originY);
-    state.manualPieces.forEach((piece) => renderManualPiece(piece, config, originX, originY));
-    renderPedestals(config, joistLayout, originX, originY);
-    renderScrewDots(state.manualPieces, joistLayout, config, originX, originY);
+    const joistLayout = computeJoistLayout(config, state.manualPieces, state.cutouts, state.manualJoists);
+    if (showStructure) renderJoists(config, joistLayout, originX, originY);
+    if (showBoards) state.manualPieces.forEach((piece) => renderManualPiece(piece, config, originX, originY));
+    if (showStructure) renderPedestals(config, joistLayout, originX, originY);
+    if (showBoards && showStructure) renderScrewDots(state.manualPieces, joistLayout, config, originX, originY);
     renderCutouts(config, joistLayout.cutouts, originX, originY);
-    renderFullLastBoardExtension(config, { rows }, originX, originY);
-    renderRowCoverage(config, rows, state.manualPieces, originX, originY);
+    if (showBoards) {
+      renderFullLastBoardExtension(config, { rows }, originX, originY);
+      renderRowCoverage(config, rows, state.manualPieces, originX, originY);
+    }
     renderDimensions(config, originX, originY);
     renderMeasureOverlay();
   }

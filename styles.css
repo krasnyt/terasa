@@ -478,8 +478,28 @@ textarea {
   pointer-events: none;
 }
 
+.manual-joist-preview-line {
+  pointer-events: none;
+  stroke: #c94400;
+  stroke-width: 9;
+  stroke-dasharray: 28 14;
+  stroke-linecap: square;
+}
+
+.manual-joist-preview-label {
+  fill: #9a3412;
+  font-size: 48px;
+  font-weight: 850;
+  paint-order: stroke;
+  pointer-events: none;
+  stroke: rgba(255, 255, 255, 0.92);
+  stroke-linejoin: round;
+  stroke-width: 13px;
+}
+
 .manual-palette {
   display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
   padding: 12px 14px;
   border: 1px solid var(--line);
@@ -491,6 +511,7 @@ textarea {
 
 .manual-text-label {
   display: grid;
+  grid-column: 1;
   gap: 6px;
   color: var(--ink);
   font-size: 0.84rem;
@@ -506,9 +527,67 @@ textarea {
 
 .manual-drag-block {
   display: flex;
+  grid-column: 1;
   flex-wrap: wrap;
   gap: 12px;
   align-items: center;
+}
+
+.manual-joist-panel {
+  display: flex;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-self: stretch;
+  align-items: center;
+  padding-left: 14px;
+  border-left: 1px solid var(--line);
+}
+
+.manual-joists-list {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.manual-joist-chip {
+  min-height: 28px;
+  padding: 0 9px;
+  border: 1px solid rgba(201, 68, 0, 0.35);
+  border-radius: 6px;
+  background: #fff;
+  color: #9a3412;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.manual-joist-chip:hover,
+.manual-joist-chip:focus-visible {
+  border-color: rgba(201, 68, 0, 0.72);
+  background: rgba(201, 68, 0, 0.08);
+}
+
+.manual-joist-drag-chip {
+  display: flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border: 1.5px dashed rgba(201, 68, 0, 0.65);
+  border-radius: 6px;
+  background: rgba(201, 68, 0, 0.08);
+  color: #9a3412;
+  cursor: grab;
+  font-size: 0.82rem;
+  font-weight: 800;
+  touch-action: none;
+  user-select: none;
+}
+
+.manual-joist-drag-chip.is-dragging {
+  opacity: 0.45;
 }
 
 .palette-board {
@@ -623,6 +702,22 @@ textarea {
   display: grid;
   gap: 10px;
   justify-items: end;
+}
+
+.view-mode-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.segmented-compact button {
+  min-width: 72px;
+  padding: 6px 10px;
 }
 
 .workspace-action-buttons {
@@ -1316,6 +1411,24 @@ textarea {
 
   .bottom-grid {
     grid-template-columns: 1fr;
+  }
+
+  .manual-palette {
+    grid-template-columns: 1fr;
+  }
+
+  .manual-text-label,
+  .manual-drag-block,
+  .manual-joist-panel {
+    grid-column: 1;
+  }
+
+  .manual-joist-panel {
+    grid-row: auto;
+    padding-top: 10px;
+    padding-left: 0;
+    border-top: 1px solid var(--line);
+    border-left: 0;
   }
 }
 

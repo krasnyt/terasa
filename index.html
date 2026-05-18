@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Plánovač pokládky terasy</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-    <link rel="stylesheet" href="styles.css?v=44" />
+    <link rel="stylesheet" href="styles.css?v=48" />
   </head>
   <body>
     <main class="app-shell">
@@ -188,6 +188,14 @@
             <p>Změna vstupu okamžitě přepočítá řezný plán i vizualizaci.</p>
           </div>
           <div class="workspace-actions">
+            <div class="view-mode-toggle" aria-label="Typ zobrazení výkresu">
+              <span>Zobrazení</span>
+              <div class="segmented segmented-compact">
+                <button id="viewJoistsBtn" type="button">Hranoly</button>
+                <button id="viewBoardsBtn" type="button">Prkna</button>
+                <button id="viewBothBtn" class="is-active" type="button">Oboje</button>
+              </div>
+            </div>
             <div class="workspace-action-buttons">
               <button id="measureToolBtn" class="measure-tool-btn" type="button" aria-pressed="false">Metr</button>
               <button id="pdfExportBtn" class="pdf-export-btn" type="button">Export PDF</button>
@@ -216,6 +224,18 @@
             <div class="palette-board" id="paletteBoardChip">Přetáhni prkno</div>
             <span class="hint">kliknutím na prkno ho odebeř</span>
           </div>
+          <div class="manual-joist-panel">
+            <label class="palette-length-label">
+              Ruční hranolovník
+              <span class="input-unit palette-length-unit">
+                <input id="manualJoistPosition" type="number" min="0" step="10" placeholder="x" />
+                <span>mm</span>
+              </span>
+            </label>
+            <button id="addManualJoistBtn" class="secondary-action-btn" type="button">Přidat hranolovník</button>
+            <div class="manual-joist-drag-chip" id="manualJoistDragChip">Přetáhni hranolovník</div>
+            <div id="manualJoistsList" class="manual-joists-list"></div>
+          </div>
         </div>
 
         <div class="drawing-frame">
@@ -236,6 +256,6 @@
       </section>
     </main>
 
-    <script type="module" src="app.js?v=65"></script>
+    <script type="module" src="app.js?v=68"></script>
   </body>
 </html>
