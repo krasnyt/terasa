@@ -20,8 +20,7 @@ Tento soubor je průběžný popis funkcí aplikace. Při každém přidání, z
 - Mezera mezi prkny v milimetrech.
 - Minimální použitelný odřezek v milimetrech.
 - Počet řad, po kterých se má opakovat vzor spár (pouze v režimu Automat).
-- Maximální rozteč sousedních hranolů v milimetrech (pouze v režimu Ideální, výchozí 1000 mm).
-- Začátek pokládky automaticky generovaných řad: zleva nebo zprava. Volba se používá v režimech Automat a Ideální.
+- Začátek pokládky automaticky generovaných řad: zleva nebo zprava. Volba se používá v režimu Automat.
 - Odsazení rektifikačních terčů od levého/pravého okraje terasy a horního/dolního kraje každého úseku podkladního hranolu v milimetrech. Hodnota zleva/zprava zároveň určuje odsazení krajních hranolovníků.
 - Preferovaná rozteč rektifikačních terčů pod jedním hranolem v milimetrech (výchozí 500 mm).
 - U všech vstupů je ikona nápovědy s vysvětlivkou při hoveru, focusu nebo kliknutí.
@@ -30,9 +29,9 @@ Tento soubor je průběžný popis funkcí aplikace. Při každém přidání, z
 
 ## Návrh pokládky
 
-Aplikace nabízí tři režimy přepínatelné segmentovaným tlačítkem „Automat" / „Ideální" / „Ručně" v panelu „Vzor pokládky". Panel „Vzor pokládky" je sbalitelný stejně jako panel „Zářezy".
+Aplikace nabízí dva režimy přepínatelné segmentovaným tlačítkem „Automat" / „Ručně" v panelu „Vzor pokládky". Panel „Vzor pokládky" je sbalitelný stejně jako panel „Zářezy".
 
-- V režimech Automat a Ideální je dostupné tlačítko „Přenést aktuální návrh do ručního režimu". Tlačítko zkopíruje právě spočítané díly do ručního režimu, nahradí dosavadní ručně umístěná prkna a přepne aplikaci do režimu Ručně. Pokud aktuální automatický návrh nejde sestavit, tlačítko je vypnuté.
+- V režimu Automat je dostupné tlačítko „Přenést aktuální návrh do ručního režimu". Tlačítko zkopíruje právě spočítané díly do ručního režimu, nahradí dosavadní ručně umístěná prkna a přepne aplikaci do režimu Ručně. Pokud aktuální automatický návrh nejde sestavit, tlačítko je vypnuté.
 - Radio volba „Začátek pokládky" určuje, jestli se automaticky generované řady skládají od levého, nebo pravého okraje terasy. Při pokládce zprava je první díl řady u pravého okraje a další díly se dopočítají směrem doleva.
 
 ### Automat
@@ -42,14 +41,6 @@ Aplikace nabízí tři režimy přepínatelné segmentovaným tlačítkem „Aut
 - Aplikace tvrdě respektuje minimální odřezek. Pokud by ve vzoru měl vzniknout díl kratší než minimální odřezek a nelze ho dorovnat zkrácením předchozího plného dílu, zobrazí se chyba a nic se nevykreslí.
 - Pokud nelze vytvořit smysluplný vzor (opakování vzoru je 1 při více řadách, nebo by posun spár vyšel pod minimální odřezek), aplikace zobrazí chybu.
 - Vstup „Opakování vzoru" je dostupný pouze v tomto režimu.
-
-### Ideální
-
-- Aplikace spočítá rozložení řezů tak, aby díly nepřekročily „Max. rozteč hranolů" (výchozí 1000 mm).
-- U napojení dvou prken na délku neleží spára na jednom sdíleném hranolu. Aplikace kolem spáry vloží dva hranoly: jeden pro konec levého prkna a jeden pro začátek pravého prkna.
-- **Žádné dvě sousední řady nemají spáry na stejných pozicích.** Liché řady jsou posunuty o `max(minOffcut, floor(maxSpan/2))` mm. Pokud posun nelze splnit (příliš malá rozteč), aplikace na to upozorní a použije jednotný vzor.
-- Díly jsou řezány greedy algoritmem: každý díl je co nejdelší (min(délka prkna, max. rozteč)), přičemž se hlídá, aby poslední díl nebyl kratší než minimální odřezek. Pokud to nelze zajistit, zobrazí se chyba.
-- Vstup „Max. rozteč hranolů" je dostupný pouze v tomto režimu.
 
 ### Ručně
 
@@ -69,7 +60,7 @@ Aplikace nabízí tři režimy přepínatelné segmentovaným tlačítkem „Aut
 - Kliknutí (pohyb < 8 px) na umístěné prkno ho odebere.
 - **Přesah:** Prkno, které přesahuje mimo rozměry terasy, je zvýrazněno červeným okrajem a přesahující část je překryta červeným poloprůsvitným pruhem s popiskem (např. `+230 mm`). Varování na přesahy jsou také v sekci Poznámky.
 - Ručně umístěná prkna se ukládají do localStorage.
-- Vstup „Opakování vzoru" ani „Max. rozteč" v tomto režimu nejsou zobrazeny; ostatní vstupní parametry fungují normálně.
+- Vstup „Opakování vzoru" v tomto režimu není zobrazen; ostatní vstupní parametry fungují normálně.
 
 ### Společné
 
@@ -81,7 +72,7 @@ Aplikace nabízí tři režimy přepínatelné segmentovaným tlačítkem „Aut
   - `+X mm` (oranžová) — v řadě přebývá X mm (prkna přesahují za pravý kraj terasy).
   - `prázdná` (šedá) — v řadě není žádné prkno.
   
-  V režimech Automat a Ideální je vždy `✓ celá`, protože pokrytí je dáno konstrukcí. V ručním režimu se přepočítává živě podle textareu a drag&drop akcí.
+  V režimu Automat je vždy `✓ celá`, protože pokrytí je dáno konstrukcí. V ručním režimu se přepočítává živě podle textareu a drag&drop akcí.
 - Vybraný režim, typ zobrazení, směr začátku pokládky, ručně umístěná prkna, ručně přidané hranolovníky a zadané zářezy se ukládají do localStorage spolu s ostatními nastaveními.
 
 ## Podkladní hranoly
@@ -104,7 +95,7 @@ Aplikace nabízí tři režimy přepínatelné segmentovaným tlačítkem „Aut
 - Prkna jsou zobrazena jako samostatné díly v jednotlivých řadách.
 - Mezery mezi řadami jsou vizuálně odlišené.
 - Napojení prken ve stejné řadě je zvýrazněné dvojitou značkou, aby byly řezy dobře vidět.
-- Dvojitá značka spáry se vykresluje v automatickém, ideálním i ručním režimu.
+- Dvojitá značka spáry se vykresluje v automatickém i ručním režimu.
 - Výkres obsahuje kóty délky a šířky terasy.
 - Výkres obsahuje detailní kóty šířky prkna a mezery.
 - Kóty jsou umístěné mimo samotnou plochu pokládky, aby nepřekrývaly prkna.

@@ -1,15 +1,14 @@
 "use strict";
 
-import { applyConfig, loadConfig, readConfig, STORAGE_KEY } from "./config.js?v=7";
+import { applyConfig, loadConfig, readConfig, STORAGE_KEY } from "./config.js?v=8";
 import {
   boardRows,
   computeJoistLayout,
-  computeOptimalLayout,
   createAutoLayout,
   packBoards,
-} from "./layout.js?v=7";
-import { createManualController } from "./manual.js?v=8";
-import { createRenderer } from "./render.js?v=14";
+} from "./layout.js?v=8";
+import { createManualController } from "./manual.js?v=9";
+import { createRenderer } from "./render.js?v=15";
 
 const qs = (selector) => document.querySelector(selector);
 
@@ -32,7 +31,6 @@ const inputs = {
   minOffcut: qs("#minOffcut"),
   patternRows: qs("#patternRows"),
   joistEdgeOffset: qs("#joistEdgeOffset"),
-  maxJoistSpacing: qs("#maxJoistSpacing"),
   pedestalVerticalOffset: qs("#pedestalVerticalOffset"),
   pedestalSpacing: qs("#pedestalSpacing"),
   manualPieceLength: qs("#manualPieceLength"),
@@ -47,11 +45,9 @@ const els = {
   warnings: qs("#warnings"),
   boardTooltip: qs("#boardTooltip"),
   autoLayoutBtn: qs("#autoLayoutBtn"),
-  optimalLayoutBtn: qs("#optimalLayoutBtn"),
   manualLayoutBtn: qs("#manualLayoutBtn"),
   transferToManualBtn: qs("#transferToManualBtn"),
   autoLayoutPanel: qs("#autoLayoutPanel"),
-  optimalLayoutPanel: qs("#optimalLayoutPanel"),
   manualLayoutPanel: qs("#manualLayoutPanel"),
   manualPalette: qs("#manualPalette"),
   paletteBoardChip: qs("#paletteBoardChip"),
@@ -141,17 +137,16 @@ function setupTooltips() {
 }
 
 function setLayoutMode(mode, options = {}) {
-  state.layoutMode = mode;
-  els.autoLayoutBtn.classList.toggle("is-active", mode === "auto");
-  els.optimalLayoutBtn.classList.toggle("is-active", mode === "optimal");
-  els.manualLayoutBtn.classList.toggle("is-active", mode === "manual");
-  els.transferToManualBtn.classList.toggle("is-hidden", mode === "manual");
-  els.autoLayoutPanel.classList.toggle("is-hidden", mode !== "auto");
-  els.optimalLayoutPanel.classList.toggle("is-hidden", mode !== "optimal");
-  els.manualLayoutPanel.classList.toggle("is-hidden", mode !== "manual");
-  els.manualPalette.classList.toggle("is-hidden", mode !== "manual");
-  document.body.classList.toggle("is-manual-mode", mode === "manual");
-  if (mode === "manual") manualController.syncManualTextFromPieces();
+  const normalizedMode = mode === "manual" ? "manual" : "auto";
+  state.layoutMode = normalizedMode;
+  els.autoLayoutBtn.classList.toggle("is-active", normalizedMode === "auto");
+  els.manualLayoutBtn.classList.toggle("is-active", normalizedMode === "manual");
+  els.transferToManualBtn.classList.toggle("is-hidden", normalizedMode === "manual");
+  els.autoLayoutPanel.classList.toggle("is-hidden", normalizedMode !== "auto");
+  els.manualLayoutPanel.classList.toggle("is-hidden", normalizedMode !== "manual");
+  els.manualPalette.classList.toggle("is-hidden", normalizedMode !== "manual");
+  document.body.classList.toggle("is-manual-mode", normalizedMode === "manual");
+  if (normalizedMode === "manual") manualController.syncManualTextFromPieces();
   renderManualJoistControls();
   if (options.save !== false) scheduleSave();
   render();
@@ -168,9 +163,7 @@ function setViewMode(mode, options = {}) {
 
 function computeCurrentGeneratedLayout(config) {
   if (state.layoutMode === "manual") return null;
-  return state.layoutMode === "optimal"
-    ? computeOptimalLayout(config)
-    : createAutoLayout(config);
+  return createAutoLayout(config);
 }
 
 function transferCurrentLayoutToManual() {
@@ -369,7 +362,6 @@ function escapeHtml(value) {
 }
 
 function modeLabel() {
-  if (state.layoutMode === "optimal") return "Ideální";
   if (state.layoutMode === "manual") return "Ručně";
   return "Automat";
 }
@@ -397,7 +389,6 @@ function configRows(config) {
   ];
 
   if (state.layoutMode === "auto") rows.push(["Opakování vzoru", `${Math.round(config.patternRows)} řad`]);
-  if (state.layoutMode === "optimal") rows.push(["Max. rozteč hranolů", `${Math.round(config.maxJoistSpacing)} mm`]);
   if (state.layoutMode === "manual" && state.manualJoists.length) rows.push(["Ruční hranolovníky", `${state.manualJoists.length} ks`]);
   if (state.cutouts.length) rows.push(["Zářezy", `${state.cutouts.length} ks`]);
   return rows;
@@ -610,7 +601,6 @@ function bindEvents() {
   });
 
   els.autoLayoutBtn.addEventListener("click", () => setLayoutMode("auto"));
-  els.optimalLayoutBtn.addEventListener("click", () => setLayoutMode("optimal"));
   els.manualLayoutBtn.addEventListener("click", () => setLayoutMode("manual"));
   els.transferToManualBtn.addEventListener("click", transferCurrentLayoutToManual);
   els.addManualJoistBtn.addEventListener("click", addManualJoist);
@@ -669,6 +659,6 @@ renderCutoutControls();
 setupTooltips();
 bindEvents();
 
-const initialMode = ["auto", "optimal", "manual"].includes(savedConfig.layoutMode) ? savedConfig.layoutMode : "auto";
+const initialMode = savedConfig.layoutMode === "manual" ? "manual" : "auto";
 setViewMode(state.viewMode, { save: false });
 setLayoutMode(initialMode, { save: false });

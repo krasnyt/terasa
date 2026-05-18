@@ -92,14 +92,13 @@
             <div class="mode-panel">
               <div class="segmented">
                 <button id="autoLayoutBtn" class="is-active" type="button">Automat</button>
-                <button id="optimalLayoutBtn" type="button">Ideální</button>
                 <button id="manualLayoutBtn" type="button">Ručně</button>
               </div>
               <button id="transferToManualBtn" class="secondary-action-btn" type="button">Přenést aktuální návrh do ručního režimu</button>
               <label>
                 <span class="label-row">
                   Začátek pokládky
-                  <button class="help-dot" type="button" aria-label="Nápověda k začátku pokládky" data-tooltip="Určuje, od kterého kraje se v režimech Automat a Ideální začne skládat první díl řady. Volba zprava přesune první díl k pravému okraji a zbytek řady dopočítá směrem doleva.">?</button>
+                  <button class="help-dot" type="button" aria-label="Nápověda k začátku pokládky" data-tooltip="Určuje, od kterého kraje se v režimu Automat začne skládat první díl řady. Volba zprava přesune první díl k pravému okraji a zbytek řady dopočítá směrem doleva.">?</button>
                 </span>
                 <span class="radio-toggle" id="layDirection">
                   <label>
@@ -124,18 +123,6 @@
                   <span class="input-unit">
                     <input id="patternRows" type="number" min="2" max="12" step="1" />
                     <span>řad</span>
-                  </span>
-                </label>
-              </div>
-              <div id="optimalLayoutPanel" class="is-hidden">
-                <label>
-                  <span class="label-row">
-                    Max. rozteč hranolů
-                    <button class="help-dot" type="button" aria-label="Nápověda k maximální rozteči hranolů" data-tooltip="Největší povolená délka dílu mezi konstrukčními body. U napojení prken se kolem spáry vykreslí dvojice hranolů, aby měl každý konec vlastní kotvení.">?</button>
-                  </span>
-                  <span class="input-unit">
-                    <input id="maxJoistSpacing" type="number" min="100" step="50" />
-                    <span>mm</span>
                   </span>
                 </label>
               </div>
@@ -274,6 +261,6 @@
       </section>
     </main>
 
-    <script type="module" src="app.js?v=71"></script>
+    <script type="module" src="app.js?v=72"></script>
   </body>
 </html>

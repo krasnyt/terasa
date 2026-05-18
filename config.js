@@ -9,7 +9,6 @@ export const DEFAULTS = {
   minOffcut: 250,
   patternRows: 3,
   joistEdgeOffset: 200,
-  maxJoistSpacing: 1000,
   pedestalVerticalOffset: 300,
   pedestalSpacing: 500,
   manualPieceLength: 2300,
@@ -54,7 +53,6 @@ export function loadConfig() {
       minOffcut: savedNumber(saved.minOffcut, DEFAULTS.minOffcut, { allowZero: true }),
       patternRows: Math.max(1, Math.round(savedNumber(saved.patternRows, DEFAULTS.patternRows))),
       joistEdgeOffset: savedNumber(saved.joistEdgeOffset, DEFAULTS.joistEdgeOffset, { allowZero: true }),
-      maxJoistSpacing: Math.max(100, savedNumber(saved.maxJoistSpacing, DEFAULTS.maxJoistSpacing)),
       pedestalVerticalOffset: savedNumber(saved.pedestalVerticalOffset, previousSplitPedestalOffset, { allowZero: true }),
       pedestalSpacing: Math.max(100, savedNumber(saved.pedestalSpacing, DEFAULTS.pedestalSpacing)),
       manualPieceLength: savedNumber(saved.manualPieceLength, boardLength),
@@ -74,7 +72,6 @@ export function applyConfig(inputs, config) {
   inputs.minOffcut.value = config.minOffcut;
   inputs.patternRows.value = config.patternRows;
   inputs.joistEdgeOffset.value = config.joistEdgeOffset;
-  inputs.maxJoistSpacing.value = config.maxJoistSpacing;
   inputs.pedestalVerticalOffset.value = config.pedestalVerticalOffset;
   inputs.pedestalSpacing.value = config.pedestalSpacing;
   inputs.manualPieceLength.value = config.manualPieceLength;
@@ -93,7 +90,6 @@ export function readConfig(inputs) {
     minOffcut: Math.max(0, Number(inputs.minOffcut.value) || 0),
     patternRows: Math.max(1, Math.round(numberValue(inputs.patternRows, DEFAULTS.patternRows))),
     joistEdgeOffset: Math.max(0, Number(inputs.joistEdgeOffset.value) || 0),
-    maxJoistSpacing: Math.max(100, numberValue(inputs.maxJoistSpacing, DEFAULTS.maxJoistSpacing)),
     pedestalVerticalOffset: Math.max(0, Number(inputs.pedestalVerticalOffset.value) || 0),
     pedestalSpacing: Math.max(100, numberValue(inputs.pedestalSpacing, DEFAULTS.pedestalSpacing)),
     manualPieceLength: numberValue(inputs.manualPieceLength, inputs.boardLength.value || DEFAULTS.boardLength),
