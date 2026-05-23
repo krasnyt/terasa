@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Plánovač pokládky terasy</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-    <link rel="stylesheet" href="styles.css?v=51" />
+    <link rel="stylesheet" href="styles.css?v=56" />
   </head>
   <body>
     <main class="app-shell">
@@ -17,6 +17,19 @@
             <p>Interaktivní návrh řezání, spotřeby a rozmístění prken.</p>
           </div>
         </div>
+
+        <section class="panel config-panel">
+          <h2>Konfigurace</h2>
+          <div class="config-actions">
+            <button id="configExportBtn" class="secondary-action-btn" type="button">Exportovat</button>
+            <button id="configImportBtn" class="secondary-action-btn" type="button">Importovat</button>
+          </div>
+          <label class="config-text-label">
+            Text konfigurace
+            <textarea id="configText" rows="4" spellcheck="false" placeholder="Sem vlož exportovanou konfiguraci"></textarea>
+          </label>
+          <p id="configStatus" class="config-status" aria-live="polite"></p>
+        </section>
 
         <section class="panel">
           <h2>Rozměry</h2>
@@ -44,12 +57,19 @@
             <label>
               <span class="label-row">
                 Délka prkna
-                <button class="help-dot" type="button" aria-label="Nápověda k délce prkna" data-tooltip="Délka jednoho koupeného prkna před řezáním. Z ní se skládá řezný plán a počet kusů k nákupu.">?</button>
+                <button class="help-dot" type="button" aria-label="Nápověda k délce prkna" data-tooltip="Výchozí délka jednoho koupeného prkna před řezáním. Pokud je vyplněný seznam skladových prken, automat a řezný plán použijí délky ze seznamu.">?</button>
               </span>
               <span class="input-unit">
                 <input id="boardLength" type="number" min="500" step="50" />
                 <span>mm</span>
               </span>
+            </label>
+            <label class="field-wide">
+              <span class="label-row">
+                Skladová prkna
+                <button class="help-dot" type="button" aria-label="Nápověda ke skladovým prknům" data-tooltip="Volitelné zadání zásoby v milimetrech: například 1x2300; 2x2400; Xx2500. X znamená neomezeně kusů. Prázdné pole znamená neomezeně prken podle délky prkna výše.">?</button>
+              </span>
+              <input id="stockBoards" class="stock-input" type="text" placeholder="např. 1x2300; 2x2400; Xx2500" />
             </label>
             <label>
               <span class="label-row">
@@ -68,6 +88,16 @@
               </span>
               <span class="input-unit">
                 <input id="gap" type="number" min="0" step="1" />
+                <span>mm</span>
+              </span>
+            </label>
+            <label>
+              <span class="label-row">
+                Tloušťka řezu
+                <button class="help-dot" type="button" aria-label="Nápověda k tloušťce řezu" data-tooltip="Šířka materiálu odebraného kotoučem při každém řezu. Například při prkně 2500 mm, dílu 2000 mm a řezu 8 mm zůstane odřezek 492 mm.">?</button>
+              </span>
+              <span class="input-unit">
+                <input id="sawKerf" type="number" min="0" step="1" />
                 <span>mm</span>
               </span>
             </label>
@@ -129,20 +159,34 @@
               <label>
                 <span class="label-row">
                   Odsazení rektifikačních terčů
-                  <button class="help-dot" type="button" aria-label="Nápověda k odsazení rektifikačních terčů" data-tooltip="Odsazení zleva/zprava určuje krajní hranolovníky s terči. Odsazení shora/zdola určuje první a poslední terč na každém úseku hranolu.">?</button>
+                  <button class="help-dot" type="button" aria-label="Nápověda k odsazení rektifikačních terčů" data-tooltip="Odsazení zleva a zprava určuje krajní hranolovníky s terči. Odsazení shora a zdola určuje první a poslední terč na každém úseku hranolu.">?</button>
                 </span>
                 <span class="split-input-unit">
                   <span class="split-input-field">
-                    <span class="split-input-label">Zleva/zprava</span>
+                    <span class="split-input-label">Zleva</span>
                     <span class="input-unit">
-                      <input id="joistEdgeOffset" type="number" min="0" step="10" aria-label="Odsazení rektifikačních terčů zleva a zprava" />
+                      <input id="joistLeftOffset" type="number" min="0" step="10" aria-label="Odsazení rektifikačních terčů zleva" />
                       <span>mm</span>
                     </span>
                   </span>
                   <span class="split-input-field">
-                    <span class="split-input-label">Shora/zdola</span>
+                    <span class="split-input-label">Zprava</span>
                     <span class="input-unit">
-                      <input id="pedestalVerticalOffset" type="number" min="0" step="10" aria-label="Odsazení rektifikačních terčů shora a zdola" />
+                      <input id="joistRightOffset" type="number" min="0" step="10" aria-label="Odsazení rektifikačních terčů zprava" />
+                      <span>mm</span>
+                    </span>
+                  </span>
+                  <span class="split-input-field">
+                    <span class="split-input-label">Shora</span>
+                    <span class="input-unit">
+                      <input id="pedestalTopOffset" type="number" min="0" step="10" aria-label="Odsazení rektifikačních terčů shora" />
+                      <span>mm</span>
+                    </span>
+                  </span>
+                  <span class="split-input-field">
+                    <span class="split-input-label">Zdola</span>
+                    <span class="input-unit">
+                      <input id="pedestalBottomOffset" type="number" min="0" step="10" aria-label="Odsazení rektifikačních terčů zdola" />
                       <span>mm</span>
                     </span>
                   </span>
@@ -261,6 +305,6 @@
       </section>
     </main>
 
-    <script type="module" src="app.js?v=72"></script>
+    <script type="module" src="app.js?v=85"></script>
   </body>
 </html>

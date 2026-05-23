@@ -16,14 +16,17 @@ Tento soubor je průběžný popis funkcí aplikace. Při každém přidání, z
 - Délka terasy v milimetrech.
 - Šířka terasy v milimetrech.
 - Délka skladového prkna v milimetrech.
+- Volitelný seznam skladových prken ve tvaru `1x2300; 2x2400; Xx2500`, kde číslo před `x` je počet kusů a `X` znamená neomezený počet. Délky se vždy zadávají v milimetrech. Pokud je seznam prázdný, aplikace používá neomezený počet prken podle vstupu „Délka prkna".
 - Šířka prkna v milimetrech.
 - Mezera mezi prkny v milimetrech.
+- Tloušťka řezu v milimetrech, tedy materiál odebraný kotoučem při každém řezu skladového prkna (výchozí 2 mm).
 - Minimální použitelný odřezek v milimetrech.
 - Počet řad, po kterých se má opakovat vzor spár (pouze v režimu Automat).
 - Začátek pokládky automaticky generovaných řad: zleva nebo zprava. Volba se používá v režimu Automat.
-- Odsazení rektifikačních terčů od levého/pravého okraje terasy a horního/dolního kraje každého úseku podkladního hranolu v milimetrech. Hodnota zleva/zprava zároveň určuje odsazení krajních hranolovníků.
+- Samostatné odsazení rektifikačních terčů od levého a pravého okraje terasy a od horního a dolního kraje každého úseku podkladního hranolu v milimetrech. Hodnoty zleva a zprava zároveň určují odsazení krajních hranolovníků.
 - Preferovaná rozteč rektifikačních terčů pod jedním hranolem v milimetrech (výchozí 500 mm).
 - U všech vstupů je ikona nápovědy s vysvětlivkou při hoveru, focusu nebo kliknutí.
+- Panel „Konfigurace" umožňuje export a import kompletního aktuálního nastavení. Export vyplní textové pole konfiguračním JSONem a pokusí se ho zkopírovat do schránky. Import načte vložený text konfigurace, přepíše aktuální stav aplikace a uloží ho do `localStorage`.
 - Volitelné obdélníkové zářezy/výklenky u okrajů terasy pro místa u oken nebo dveří. Každý zářez má název, stranu (horní/dolní), vzdálenost od levého kraje, šířku a hloubku v milimetrech. Hloubka se zadává směrem ven od základního obdélníku terasy.
 - Panel „Zářezy" je sbalitelný. Ve sbaleném stavu ukazuje počet zadaných zářezů a tlačítko pro přidání, aby panel „Výstup" zůstával v levém sloupci rychle dostupný.
 
@@ -36,8 +39,9 @@ Aplikace nabízí dva režimy přepínatelné segmentovaným tlačítkem „Auto
 
 ### Automat
 
-- Posun spár mezi řadami se dopočítá jako délka prkna dělená opakováním vzoru, aby byl vzor pravidelný a všechny řady měly stejnou množinu délek dílů.
-- Cílem návrhu je vždy minimalizovat odpad — díly se skládají do skladových prken algoritmem first-fit-decreasing.
+- Posun spár mezi řadami se dopočítá jako nejdelší dostupná délka skladového prkna dělená opakováním vzoru, aby byl vzor pravidelný a všechny řady měly stejnou množinu délek dílů.
+- Délky automaticky vytvořených dílů se zaokrouhlují na celé milimetry tak, aby součet dílů v každé řadě zůstal přesně roven délce terasy.
+- Cílem návrhu je vždy minimalizovat odpad — díly se skládají do skladových prken algoritmem first-fit-decreasing, který respektuje zadané omezené počty prken a neomezené položky.
 - Aplikace tvrdě respektuje minimální odřezek. Pokud by ve vzoru měl vzniknout díl kratší než minimální odřezek a nelze ho dorovnat zkrácením předchozího plného dílu, zobrazí se chyba a nic se nevykreslí.
 - Pokud nelze vytvořit smysluplný vzor (opakování vzoru je 1 při více řadách, nebo by posun spár vyšel pod minimální odřezek), aplikace zobrazí chybu.
 - Vstup „Opakování vzoru" je dostupný pouze v tomto režimu.
@@ -54,7 +58,7 @@ Aplikace nabízí dva režimy přepínatelné segmentovaným tlačítkem „Auto
 - Hodnota vstupu „Délka" v ruční paletě se ukládá do localStorage spolu s ostatními vstupy.
 - **Snap:** Při přetahování se prkno automaticky přichytí k nejbližší hraně sousedního prkna (s mezerou) nebo k okraji terasy, pokud je kurzor blíže než ~22 px v SVG souřadnicích.
 - Přetažením lze i přesouvat již umístěná prkna. Prkno se drží v místě úchopu — poloha levého kraje se přepočítává jako `kurzor − offset_úchopu`, takže prkno se pohybuje relativně bez skoku.
-- **Změna velikosti:** Uchopením levého nebo pravého kraje prkna (do ~22 px od okraje v datových souřadnicích, včetně oblasti v mezeře mimo rect) lze prkno zmenšit nebo zvětšit. Minimum = min. odřezek, maximum = délka skladového prkna. Kurzor se při přiblížení ke kraji změní na `ew-resize`. Během tažení se zobrazuje tooltip s aktuální délkou.
+- **Změna velikosti:** Uchopením levého nebo pravého kraje prkna (do ~22 px od okraje v datových souřadnicích, včetně oblasti v mezeře mimo rect) lze prkno zmenšit nebo zvětšit. Minimum = min. odřezek, maximum = nejdelší dostupná délka skladového prkna. Kurzor se při přiblížení ke kraji změní na `ew-resize`. Během tažení se zobrazuje tooltip s aktuální délkou.
 - **Posun spáry / hranolovníku:** Uchopením spáry nebo některého z dvojice hranolů u spáry lze v ručním režimu posunout napojení. Pokud stejnou pozici spáry používá více řad, posunou se všechny tyto spáry najednou, takže se neponechá původní dvojice hranolů jen kvůli staré poloze v ostatních řadách. Levá a pravá prkna se proti sobě zkrátí/prodlouží, mezera mezi nimi zůstane zachovaná a délky dílů respektují minimum odřezku i maximální délku skladového prkna. Po posunu se textarea řad, hranoly, terče a vruty přepočítají podle nové polohy spáry.
 - **Ruční hranolovníky:** V ručním režimu je v paletě dostupný vstup „Ruční hranolovník", kam se zadá X pozice v milimetrech od levého kraje terasy. Tlačítko „Přidat hranolovník" vloží na danou pozici samostatný hranolovník nezávisle na spárách. Hranolovník lze také přetáhnout z chipu „Přetáhni hranolovník" přímo do výkresu; během tažení se ve výkresu zobrazí svislý náhled a aktuální X souřadnice v milimetrech. Na širokém zobrazení je tento blok napravo od textové definice řad, na užším zobrazení spadne pod ni. Přidané hranolovníky se zobrazují jako chipy s možností odebrání a započítávají se do hranolů, rektifikačních terčů, vrutů, kót i výstupu.
 - Kliknutí (pohyb < 8 px) na umístěné prkno ho odebere.
@@ -77,12 +81,12 @@ Aplikace nabízí dva režimy přepínatelné segmentovaným tlačítkem „Auto
 
 ## Podkladní hranoly
 
-- Aplikace počítá pozice podkladních hranolovníků: u vnitřních konců prken je vždy samostatný hranol odsazený přibližně 18 mm dovnitř od konce prkna. U napojení dvou prken na délku tak vznikne dvojice hranolů kolem spáry, aby měl každý konec vlastní kotvení. Navíc jsou hranoly ve vzdálenosti dané hodnotou „Zleva/zprava" ve vstupu „Odsazení rektifikačních terčů" od každého kraje terasy.
+- Aplikace počítá pozice podkladních hranolovníků: u vnitřních konců prken je vždy samostatný hranol odsazený přibližně 18 mm dovnitř od konce prkna. U napojení dvou prken na délku tak vznikne dvojice hranolů kolem spáry, aby měl každý konec vlastní kotvení. Navíc jsou krajní hranoly odsazené od levého a pravého kraje terasy podle samostatných hodnot ve vstupu „Odsazení rektifikačních terčů".
 - Pozice hranolovníků jsou unikátní x-souřadnice přes všechny řady vzoru.
 - Pokud je zadaný zářez, hranolovník v jeho X rozsahu se prodlouží ven od základního obdélníku terasy podle hloubky zářezu. Kóty mezi hranolovníky zůstávají podle X souřadnic, ale celková délka hranolů vychází ze skutečných úseků včetně prodloužení do zářezu.
 - Ve výkresu jsou hranolovníky zobrazeny jako svislé přerušované čáry v hnědo-oranžové barvě. Jsou vykresleny pod prkny, takže jsou viditelné pouze v mezerách mezi řadami — prkna je překrývají.
 - **Kotvící body vrutů:** v každém průniku prkna s hranolem jsou na prkně dvě malé černé tečky (jeden vrut u horního, druhý u dolního okraje prkna). Tečky odpovídají dvěma vrutům, kterými je prkno přichycené k hranolu. U napojení dvou prken vzniknou dva hranoly kolem spáry: konec levého prkna se kotví do levého hranolu a začátek pravého prkna do pravého hranolu. Body jsou odsazené přibližně 18 mm od konce příslušného prkna, takže ve spáře jsou viditelné celkem **4 body**, ale každý pár patří k vlastnímu hranolu.
-- **Rektifikační terče:** pod každým úsekem podkladního hranolu se vykreslí modré značky terčů. Krajní hranolovníky s terči jsou od levého a pravého okraje odsazené podle hodnoty „Zleva/zprava"; první a poslední terč každého úseku hranolu jsou od horního a dolního kraje odsazené podle hodnoty „Shora/zdola". Mezi nimi se terče rovnoměrně rozloží tak, aby nepřekročily vstup „Rozteč rektifikačních terčů". Pokud je úsek kratší než dvojnásobek odsazení shora/zdola, vykreslí se jeden terč uprostřed úseku.
+- **Rektifikační terče:** pod každým úsekem podkladního hranolu se vykreslí modré značky terčů. Krajní hranolovníky s terči jsou od levého a pravého okraje odsazené podle samostatných hodnot „Zleva" a „Zprava"; první a poslední terč každého úseku hranolu jsou od horního a dolního kraje odsazené podle samostatných hodnot „Shora" a „Zdola". Mezi nimi se terče rovnoměrně rozloží tak, aby nepřekročily vstup „Rozteč rektifikačních terčů". Pokud je úsek kratší než součet odsazení shora a zdola, vykreslí se jeden terč uprostřed úseku.
 - Nad terasou jsou tick marky a kóty vzdáleností mezi všemi sousedními hranolovníky, včetně kót od okraje terasy k prvnímu a poslednímu hranolu.
 
 ## Vizualizace
@@ -91,13 +95,14 @@ Aplikace nabízí dva režimy přepínatelné segmentovaným tlačítkem „Auto
 - Terasa je zobrazena v měřítku podle zadaných rozměrů.
 - Zářezy jsou ve výkresu vykreslené jako průsvitné šrafované obdélníky zvenku připojené k horní nebo dolní hraně terasy s popiskem rozměru. V první verzi slouží jako kontrolní vrstva pro hranoly; automatické ani ruční rozložení prken se podle nich zatím neřeže.
 - **Velikost plátna se přizpůsobuje terase:** drawing-frame nemá pevnou minimální výšku, SVG si přes `style.aspectRatio = viewWidth / viewHeight` určí výšku podle poměru viewBoxu, takže nad ani pod terasou nevzniká zbytečný prázdný prostor a sekce řezného plánu + poznámky jsou hned pod kresbou.
-- Vertikální padding uvnitř SVG (prostor pro horní/dolní kóty) se počítá samostatně pro horní okraj (`max(180, pad*0.4)`) a dolní okraj (`max(240, pad*0.45, boardWidth+90)`), aby byl prostor pro kóty co nejtěsnější, ale stále dostatečný pro štítky a pro pás celého posledního prkna.
+- Vertikální padding uvnitř SVG (prostor pro horní/dolní kóty a měřítko) se počítá samostatně pro horní okraj (`max(360, pad*0.4)`) a dolní okraj (`max(240, pad*0.45, boardWidth+90)`), aby byl prostor pro měřítko, kóty, štítky a pás celého posledního prkna.
 - Prkna jsou zobrazena jako samostatné díly v jednotlivých řadách.
 - Mezery mezi řadami jsou vizuálně odlišené.
 - Napojení prken ve stejné řadě je zvýrazněné dvojitou značkou, aby byly řezy dobře vidět.
 - Dvojitá značka spáry se vykresluje v automatickém i ručním režimu.
 - Výkres obsahuje kóty délky a šířky terasy.
 - Výkres obsahuje detailní kóty šířky prkna a mezery.
+- Na horním a levém okraji SVG plátna je milimetrové měřítko s automaticky voleným krokem značek podle aktuálních rozměrů terasy.
 - Kóty jsou umístěné mimo samotnou plochu pokládky, aby nepřekrývaly prkna.
 - Pokud je poslední řada užší než celé prkno, výkres ukáže průsvitný pás s informací, o kolik by se terasa musela rozšířit, aby poslední prkno nebylo nutné podélně řezat.
 - Při hoveru na díl prkna se prkno vizuálně zvýrazní (zesvětlení a bílý obrys), aby bylo zřejmé, na které prkno ukazatel míří.
@@ -111,13 +116,14 @@ Aplikace nabízí dva režimy přepínatelné segmentovaným tlačítkem „Auto
 
 Panel „Výstup" je sbalitelný a rozdělen vodorovnou čárou na dvě sekce. Nad čárou je obecná spotřeba materiálu, pod čárou navazující drobný materiál (hranoly a spojovací prvky).
 
-V hlavičce výkresu je tlačítko „Export PDF". Po kliknutí aplikace sestaví tiskový list A4 na šířku s aktuálním režimem, vstupními hodnotami, výkresem, výstupem, řezným plánem a poznámkami. Řezný plán se v PDF při sestavení rozdělí do 1–4 samostatných sloupců podle počtu skladových prken; pruhy řezů se v PDF generují jako inline SVG, aby se zobrazily i při tisku bez CSS pozadí. Celý obsah se před otevřením tiskového dialogu zmenší tak, aby se vešel na jednu stránku; PDF se uloží přes systémovou volbu tisku „Uložit jako PDF".
+V hlavičce výkresu je tlačítko „Export PDF". Po kliknutí aplikace sestaví tiskové listy A4 na šířku. První stránka obsahuje aktuální režim, vstupní hodnoty, výkres, výstup a poznámky; řezný plán je na samostatné stránce. Při velkém počtu skladových prken se řezný plán rozdělí na další stránky a na každé stránce do 1–4 sloupců podle počtu prken. Pruhy řezů se v PDF generují jako inline SVG, aby se zobrazily i při tisku bez CSS pozadí. Každá stránka se před otevřením tiskového dialogu zmenší tak, aby se vešla na jeden list; PDF se uloží přes systémovou volbu tisku „Uložit jako PDF".
 
 **Nad čárou:**
 - Počet skladových prken potřebných k nákupu.
+- Při zadaném seznamu skladových prken výstup uvádí také skladbu použitých délek (např. `1x2300 mm; 2x2400 mm`) a řezný plán kreslí odpad vůči konkrétní délce každého skladového prkna.
 - Počet položených řad.
 - Počet řezaných dílů.
-- Celkový odpad v milimetrech a procentech.
+- Celkový odpad v milimetrech a procentech. Odpad zahrnuje fyzické odřezky i prořez kotouče; detail ukazuje obě složky zvlášť.
 - Pokrytá šířka terasy.
 
 **Pod čárou:**
@@ -129,6 +135,9 @@ V hlavičce výkresu je tlačítko „Export PDF". Po kliknutí aplikace sestav�
 - Řezný plán pro jednotlivá skladová prkna.
 - V řezném plánu má každé skladové prkno stejnou vizuální délku.
 - Řezný plán ukazuje jednotlivé řezy a odpad pro každé skladové prkno.
+- U každého řezu v řezném plánu je uvedeno, do které řady a na jaký díl počítáno zleva patří.
+- Řezný plán je seřazený podle délky skladového prkna od nejkratšího po nejdelší.
+- Řezný plán mezi díly zobrazuje i prořez kotouče. Pokud se z prkna 2500 mm odřízne díl 2000 mm a tloušťka řezu je 8 mm, zbylý odřezek je 492 mm.
 - Řezný plán se nestrouhá do vlastního scroll okénka — vykreslí všechna prkna pod sebou. Pokud jich je hodně, scrolluje se celá stránka.
 - Poznámky a varování upozorňují na konflikty nebo doporučení v návrhu.
 - Poznámky uvádějí aktuální šířku poslední řady a doporučenou šířku terasy bez podélného řezu posledního prkna.
@@ -139,4 +148,5 @@ V hlavičce výkresu je tlačítko „Export PDF". Po kliknutí aplikace sestav�
 - Lokálně ji lze spustit například přes `python3 -m http.server 8765`.
 - Prohlížečová cache je obcházená verzemi u `styles.css` a `app.js`.
 - Výchozí hodnoty všech vstupů jsou definované v objektu `DEFAULTS` v `config.js`. Při startu se načtou z `localStorage` (klíč `terasa-navrh`), při nedostupnosti se použijí `DEFAULTS`. Při každé změně vstupu se hodnoty po 5 sekundách automaticky uloží zpět.
+- Exportovaná konfigurace má obálku `format: "terasa-navrh"`, `version`, čas exportu a vlastní objekt `config`. Import přijímá tuto obálku i samotný konfigurační objekt a používá stejnou normalizaci hodnot jako načtení z `localStorage`.
 - Git repozitář používá české texty commitů.

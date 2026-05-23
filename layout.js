@@ -30,23 +30,92 @@ export function fullLastBoardInfo(config, rows) {
   };
 }
 
+function stockLengthValue(raw) {
+  const text = String(raw || "").trim().toLowerCase();
+  const match = text.match(/^([0-9]+(?:[.,][0-9]+)?)(mm)?$/);
+  if (!match) return null;
+  const numeric = Number(match[1].replace(",", "."));
+  if (!Number.isFinite(numeric) || numeric <= 0) return null;
+  return numeric;
+}
+
+function formatStockEntry(entry) {
+  const count = entry.count === Infinity ? "X" : Math.round(entry.count);
+  return `${count}x${Math.round(entry.length)}`;
+}
+
+export function stockInventory(config) {
+  const fallbackLength = Math.max(1, Math.round(Number(config.boardLength) || 0));
+  const spec = String(config.stockBoards || "").trim();
+  if (!spec) {
+    return {
+      entries: [{ count: Infinity, length: fallbackLength }],
+      warnings: [],
+      label: `Xx${fallbackLength}`,
+      isCustom: false,
+      maxLength: fallbackLength,
+    };
+  }
+
+  const warnings = [];
+  const entries = [];
+  spec.split(/[;\n,]+/).map((part) => part.trim()).filter(Boolean).forEach((part) => {
+    const match = part.match(/^(\d+|x|\*|∞)\s*[x×]\s*([0-9]+(?:[.,][0-9]+)?(?:\s*mm)?)$/i);
+    if (!match) {
+      warnings.push({ type: "danger", text: `Skladové prkno „${part}” nemá správný tvar. Použij například 1x2300; 2x2400; Xx2500.` });
+      return;
+    }
+    const count = /^(x|\*|∞)$/i.test(match[1]) ? Infinity : Number(match[1]);
+    const length = stockLengthValue(match[2].replace(/\s+/g, ""));
+    if ((!Number.isFinite(count) && count !== Infinity) || count <= 0 || !Number.isFinite(length) || length <= 0) {
+      warnings.push({ type: "danger", text: `Skladové prkno „${part}” nejde přečíst.` });
+      return;
+    }
+    entries.push({ count, length: Math.round(length) });
+  });
+
+  if (!entries.length) {
+    return {
+      entries: [{ count: Infinity, length: fallbackLength }],
+      warnings: warnings.length ? warnings : [{ type: "danger", text: "Seznam skladových prken je prázdný nebo neplatný." }],
+      label: `Xx${fallbackLength}`,
+      isCustom: true,
+      maxLength: fallbackLength,
+    };
+  }
+
+  const maxLength = Math.max(...entries.map((entry) => entry.length));
+  return {
+    entries,
+    warnings,
+    label: entries.map(formatStockEntry).join("; "),
+    isCustom: true,
+    maxLength,
+  };
+}
+
+export function getMaxStockLength(config) {
+  return stockInventory(config).maxLength;
+}
+
 function buildRowLengths(config, patternIndex, stagger) {
+  const boardLength = getMaxStockLength(config);
   if (config.terraceLength < config.minOffcut - 0.5) {
     return { error: `Délka terasy ${Math.round(config.terraceLength)} mm je menší než minimální odřezek ${Math.round(config.minOffcut)} mm.` };
   }
 
-  if (config.terraceLength <= config.boardLength + 0.5) {
+  if (config.terraceLength <= boardLength + 0.5) {
     return { lengths: [config.terraceLength] };
   }
 
   const offset = patternIndex * stagger;
-  const firstLength = offset > 0 ? config.boardLength - offset : config.boardLength;
+  const firstLength = offset > 0 ? boardLength - offset : boardLength;
   const lengths = [firstLength];
   let placed = firstLength;
 
-  while (config.terraceLength - placed > config.boardLength + 0.5) {
-    lengths.push(config.boardLength);
-    placed += config.boardLength;
+  while (config.terraceLength - placed > boardLength + 0.5) {
+    lengths.push(boardLength);
+    placed += boardLength;
   }
 
   let remainder = config.terraceLength - placed;
@@ -62,7 +131,50 @@ function buildRowLengths(config, patternIndex, stagger) {
     lengths.push(remainder);
   }
 
-  return { lengths };
+  return {
+    lengths: roundLengthsToTotal(lengths, config.terraceLength, config.minOffcut, boardLength),
+  };
+}
+
+function roundLengthsToTotal(lengths, total, minLength, maxLength) {
+  const target = Math.round(total);
+  const rounded = lengths.map((length) => Math.floor(length));
+  let missing = target - rounded.reduce((sum, length) => sum + length, 0);
+  if (missing <= 0) return rebalanceRoundedLengths(rounded, missing, minLength, maxLength);
+
+  const order = lengths
+    .map((length, index) => ({ index, fraction: length - Math.floor(length) }))
+    .sort((a, b) => b.fraction - a.fraction || a.index - b.index);
+
+  for (const item of order) {
+    if (missing <= 0) break;
+    const room = Math.max(0, Math.round(maxLength) - rounded[item.index]);
+    if (!room) continue;
+    const add = Math.min(room, missing);
+    rounded[item.index] += add;
+    missing -= add;
+  }
+
+  return rebalanceRoundedLengths(rounded, missing, minLength, maxLength);
+}
+
+function rebalanceRoundedLengths(lengths, diff, minLength, maxLength) {
+  if (diff === 0) return lengths;
+  const min = Math.round(minLength);
+  const max = Math.round(maxLength);
+  const direction = diff > 0 ? 1 : -1;
+  let remaining = Math.abs(diff);
+
+  while (remaining > 0) {
+    const index = direction > 0
+      ? lengths.findIndex((length) => length < max)
+      : lengths.findIndex((length) => length > min);
+    if (index === -1) break;
+    lengths[index] += direction;
+    remaining -= 1;
+  }
+
+  return lengths;
 }
 
 function placeRowPieces(config, row, lengths, idPrefix, patternIndex, pieces) {
@@ -101,6 +213,8 @@ function placeRowPieces(config, row, lengths, idPrefix, patternIndex, pieces) {
 export function createAutoLayout(config) {
   const rows = boardRows(config);
   const pieces = [];
+  const inventory = stockInventory(config);
+  const boardLength = inventory.maxLength;
 
   if (rows.length > 1 && config.patternRows < 2) {
     return {
@@ -112,7 +226,7 @@ export function createAutoLayout(config) {
     };
   }
 
-  const stagger = rows.length > 1 ? config.boardLength / config.patternRows : 0;
+  const stagger = rows.length > 1 ? boardLength / config.patternRows : 0;
 
   if (rows.length > 1 && stagger < config.minOffcut - 0.5) {
     return {
@@ -121,7 +235,7 @@ export function createAutoLayout(config) {
       packed: [],
       warnings: [{
         type: "danger",
-        text: `Při ${config.patternRows} řadách ve vzoru by posun spár vyšel na ${Math.round(stagger)} mm, což je méně než minimální odřezek ${Math.round(config.minOffcut)} mm. Sniž opakování vzoru, zvětši délku prkna nebo sniž minimální odřezek.`,
+        text: `Při ${config.patternRows} řadách ve vzoru by posun spár vyšel na ${Math.round(stagger)} mm, což je méně než minimální odřezek ${Math.round(config.minOffcut)} mm. Sniž opakování vzoru, zvětši délku skladového prkna nebo sniž minimální odřezek.`,
       }],
       invalidPattern: true,
     };
@@ -149,7 +263,7 @@ export function createAutoLayout(config) {
           packed: [],
           warnings: [{
             type: "danger",
-            text: `Ve vzoru by vznikl díl o délce ${Math.round(length)} mm, což je méně než minimální odřezek ${Math.round(config.minOffcut)} mm. Uprav délku terasy, délku prkna, opakování vzoru nebo minimální odřezek.`,
+            text: `Ve vzoru by vznikl díl o délce ${Math.round(length)} mm, což je méně než minimální odřezek ${Math.round(config.minOffcut)} mm. Uprav délku terasy, skladová prkna, opakování vzoru nebo minimální odřezek.`,
           }],
           invalidPattern: true,
         };
@@ -159,8 +273,15 @@ export function createAutoLayout(config) {
     placeRowPieces(config, row, result.lengths, "a", patternIndex, pieces);
   }
 
-  const packed = packBoards(pieces.map((piece) => piece.length), config.boardLength);
-  return { rows, pieces, packed, warnings: [], stagger };
+  const packed = packBoards(piecesForCutPlan(pieces), config);
+  return {
+    rows,
+    pieces,
+    packed,
+    warnings: packed.warnings,
+    invalidPattern: packed.invalid,
+    stagger,
+  };
 }
 
 export function serializeManualPieces(pieces) {
@@ -207,6 +328,34 @@ export function parseManualText(text, config) {
   return pieces;
 }
 
+export function piecesForCutPlan(pieces) {
+  const byRow = new Map();
+  pieces.forEach((piece) => {
+    if (!byRow.has(piece.row)) byRow.set(piece.row, []);
+    byRow.get(piece.row).push(piece);
+  });
+
+  const orderById = new Map();
+  byRow.forEach((rowPieces) => {
+    rowPieces
+      .slice()
+      .sort((a, b) => a.x - b.x || String(a.id || "").localeCompare(String(b.id || "")))
+      .forEach((piece, index) => {
+        orderById.set(piece.id, index + 1);
+      });
+  });
+
+  return pieces.map((piece) => {
+    const pieceIndex = orderById.get(piece.id) || 1;
+    return {
+      length: piece.length,
+      row: piece.row,
+      pieceIndex,
+      cutLabel: `ř. ${piece.row + 1}, díl ${pieceIndex} zleva`,
+    };
+  });
+}
+
 export function computeRowCoverage(rowIndex, pieces, config) {
   const rowPieces = pieces.filter((p) => p.row === rowIndex);
   if (!rowPieces.length) return { status: "empty", diff: config.terraceLength };
@@ -226,8 +375,10 @@ export function computeRowCoverage(rowIndex, pieces, config) {
 
 export function computeJoistPositions(config, pieces, extraPositions = []) {
   const half = Math.round(config.terraceLength / 2);
-  const leftEdge = Math.min(config.joistEdgeOffset, half);
-  const rightEdge = Math.max(config.terraceLength - config.joistEdgeOffset, leftEdge + 1);
+  const leftOffset = Math.max(0, Number(config.joistLeftOffset ?? config.joistEdgeOffset) || 0);
+  const rightOffset = Math.max(0, Number(config.joistRightOffset ?? config.joistEdgeOffset) || 0);
+  const leftEdge = Math.min(leftOffset, half);
+  const rightEdge = Math.max(config.terraceLength - rightOffset, leftEdge + 1);
   const all = new Set([leftEdge, rightEdge]);
   const clampX = (x) => Math.max(0, Math.min(config.terraceLength, x));
 
@@ -323,15 +474,16 @@ function pedestalYsForSegment(segment, config) {
   const length = segment.y2 - segment.y1;
   if (length <= 0.5) return [];
 
-  const edgeOffset = Math.max(0, Number(config.pedestalVerticalOffset) || 0);
+  const topOffset = Math.max(0, Number(config.pedestalTopOffset ?? config.pedestalVerticalOffset) || 0);
+  const bottomOffset = Math.max(0, Number(config.pedestalBottomOffset ?? config.pedestalVerticalOffset) || 0);
   const spacing = Math.max(100, Number(config.pedestalSpacing) || 500);
 
-  if (length <= edgeOffset * 2 + 0.5) {
+  if (length <= topOffset + bottomOffset + 0.5) {
     return [segment.y1 + length / 2];
   }
 
-  const first = segment.y1 + edgeOffset;
-  const last = segment.y2 - edgeOffset;
+  const first = segment.y1 + topOffset;
+  const last = segment.y2 - bottomOffset;
   const distance = last - first;
   const intervalCount = Math.max(1, Math.ceil(distance / spacing));
 
@@ -356,22 +508,86 @@ export function computePedestalLayout(config, joistLayout) {
   return { pedestals, count: pedestals.length };
 }
 
-export function packBoards(lengths, stockLength) {
-  const boards = [];
-  const sorted = lengths
-    .filter((length) => length > 0)
-    .map((length) => Math.round(length))
-    .sort((a, b) => b - a);
+function attachPackMeta(boards, props) {
+  Object.defineProperties(boards, {
+    warnings: { value: props.warnings || [], enumerable: false },
+    invalid: { value: Boolean(props.invalid), enumerable: false },
+    inventory: { value: props.inventory, enumerable: false },
+  });
+  return boards;
+}
 
-  sorted.forEach((length) => {
-    let target = boards.find((board) => board.remaining >= length);
+function remainingAfterCut(remaining, length, sawKerf) {
+  const gap = remaining - length;
+  if (gap <= 0.5) return { remaining: 0, kerf: 0 };
+  const kerf = Math.min(sawKerf, gap);
+  return {
+    remaining: Math.max(0, gap - kerf),
+    kerf,
+  };
+}
+
+function cutItemLabel(item) {
+  if (item.cutLabel) return item.cutLabel;
+  if (Number.isFinite(item.row) && Number.isFinite(item.pieceIndex)) {
+    return `ř. ${item.row + 1}, díl ${item.pieceIndex} zleva`;
+  }
+  return "";
+}
+
+export function packBoards(cutItems, stockSource) {
+  const config = typeof stockSource === "number" ? { boardLength: stockSource, stockBoards: "" } : stockSource;
+  const inventory = stockInventory(config);
+  const sawKerf = Math.max(0, Number(config.sawKerf) || 0);
+  const warnings = [...inventory.warnings];
+  const boards = [];
+  if (warnings.some((warning) => warning.type === "danger")) {
+    return attachPackMeta(boards, { warnings, invalid: true, inventory });
+  }
+  const available = inventory.entries.map((entry, index) => ({
+    ...entry,
+    index,
+    remainingCount: entry.count,
+  }));
+  const sorted = cutItems
+    .map((item, inputIndex) => {
+      const rawLength = typeof item === "number" ? item : item.length;
+      return {
+        inputIndex,
+        length: Math.round(Number(rawLength) || 0),
+        label: typeof item === "number" ? "" : cutItemLabel(item),
+      };
+    })
+    .filter((item) => item.length > 0)
+    .sort((a, b) => b.length - a.length || a.inputIndex - b.inputIndex);
+
+  for (const item of sorted) {
+    const { length } = item;
+    let target = boards
+      .filter((board) => board.remaining >= length)
+      .sort((a, b) => remainingAfterCut(a.remaining, length, sawKerf).remaining - remainingAfterCut(b.remaining, length, sawKerf).remaining)[0];
     if (!target) {
-      target = { cuts: [], remaining: stockLength };
+      const source = available
+        .filter((entry) => entry.length >= length && (entry.remainingCount === Infinity || entry.remainingCount > 0))
+        .sort((a, b) => a.length - b.length || a.index - b.index)[0];
+      if (!source) {
+        warnings.push({
+          type: "danger",
+          text: `Díl ${Math.round(length)} mm se nevejde do dostupné zásoby skladových prken (${inventory.label}).`,
+        });
+        return attachPackMeta(boards, { warnings, invalid: true, inventory });
+      }
+      if (source.remainingCount !== Infinity) source.remainingCount -= 1;
+      target = { cuts: [], cutDetails: [], kerfs: [], sawWaste: 0, remaining: source.length, length: source.length, sourceIndex: source.index };
       boards.push(target);
     }
+    const result = remainingAfterCut(target.remaining, length, sawKerf);
     target.cuts.push(length);
-    target.remaining -= length;
-  });
+    target.cutDetails.push({ length, label: item.label });
+    target.kerfs.push(result.kerf);
+    target.sawWaste += result.kerf;
+    target.remaining = result.remaining;
+  }
 
-  return boards;
+  return attachPackMeta(boards, { warnings, invalid: warnings.some((warning) => warning.type === "danger"), inventory });
 }

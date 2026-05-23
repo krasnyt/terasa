@@ -4,12 +4,16 @@ export const DEFAULTS = {
   terraceLength: 5000,
   terraceWidth: 2150,
   boardLength: 2300,
+  stockBoards: "",
   boardWidth: 178,
   gap: 6,
+  sawKerf: 2,
   minOffcut: 250,
   patternRows: 3,
-  joistEdgeOffset: 200,
-  pedestalVerticalOffset: 300,
+  joistLeftOffset: 200,
+  joistRightOffset: 200,
+  pedestalTopOffset: 300,
+  pedestalBottomOffset: 300,
   pedestalSpacing: 500,
   manualPieceLength: 2300,
   layDirection: "left",
@@ -36,28 +40,37 @@ function savedNumber(value, fallback, options = {}) {
   return numeric > min ? numeric : fallback;
 }
 
+export function normalizeConfig(value = {}) {
+  const saved = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const boardLength = savedNumber(saved.boardLength, DEFAULTS.boardLength);
+  const legacyJoistOffset = savedNumber(saved.joistEdgeOffset, DEFAULTS.joistLeftOffset, { allowZero: true });
+  const legacyPedestalOffset = savedNumber(saved.pedestalEdgeOffset, DEFAULTS.pedestalTopOffset, { allowZero: true });
+  const previousSplitPedestalOffset = savedNumber(saved.pedestalVerticalOffset ?? saved.pedestalStartOffset ?? saved.pedestalEndOffset, legacyPedestalOffset, { allowZero: true });
+  return {
+    ...DEFAULTS,
+    ...saved,
+    terraceLength: savedNumber(saved.terraceLength, DEFAULTS.terraceLength),
+    terraceWidth: savedNumber(saved.terraceWidth, DEFAULTS.terraceWidth),
+    boardLength,
+    stockBoards: typeof saved.stockBoards === "string" ? saved.stockBoards : DEFAULTS.stockBoards,
+    boardWidth: savedNumber(saved.boardWidth, DEFAULTS.boardWidth),
+    gap: savedNumber(saved.gap, DEFAULTS.gap, { allowZero: true }),
+    sawKerf: savedNumber(saved.sawKerf, DEFAULTS.sawKerf, { allowZero: true }),
+    minOffcut: savedNumber(saved.minOffcut, DEFAULTS.minOffcut, { allowZero: true }),
+    patternRows: Math.max(1, Math.round(savedNumber(saved.patternRows, DEFAULTS.patternRows))),
+    joistLeftOffset: savedNumber(saved.joistLeftOffset, legacyJoistOffset, { allowZero: true }),
+    joistRightOffset: savedNumber(saved.joistRightOffset, legacyJoistOffset, { allowZero: true }),
+    pedestalTopOffset: savedNumber(saved.pedestalTopOffset, previousSplitPedestalOffset, { allowZero: true }),
+    pedestalBottomOffset: savedNumber(saved.pedestalBottomOffset, previousSplitPedestalOffset, { allowZero: true }),
+    pedestalSpacing: Math.max(100, savedNumber(saved.pedestalSpacing, DEFAULTS.pedestalSpacing)),
+    manualPieceLength: savedNumber(saved.manualPieceLength, boardLength),
+    layDirection: saved.layDirection === "right" ? "right" : "left",
+  };
+}
+
 export function loadConfig() {
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-    const boardLength = savedNumber(saved.boardLength, DEFAULTS.boardLength);
-    const legacyPedestalOffset = savedNumber(saved.pedestalEdgeOffset, DEFAULTS.pedestalVerticalOffset, { allowZero: true });
-    const previousSplitPedestalOffset = savedNumber(saved.pedestalStartOffset ?? saved.pedestalEndOffset, legacyPedestalOffset, { allowZero: true });
-    return {
-      ...DEFAULTS,
-      ...saved,
-      terraceLength: savedNumber(saved.terraceLength, DEFAULTS.terraceLength),
-      terraceWidth: savedNumber(saved.terraceWidth, DEFAULTS.terraceWidth),
-      boardLength,
-      boardWidth: savedNumber(saved.boardWidth, DEFAULTS.boardWidth),
-      gap: savedNumber(saved.gap, DEFAULTS.gap, { allowZero: true }),
-      minOffcut: savedNumber(saved.minOffcut, DEFAULTS.minOffcut, { allowZero: true }),
-      patternRows: Math.max(1, Math.round(savedNumber(saved.patternRows, DEFAULTS.patternRows))),
-      joistEdgeOffset: savedNumber(saved.joistEdgeOffset, DEFAULTS.joistEdgeOffset, { allowZero: true }),
-      pedestalVerticalOffset: savedNumber(saved.pedestalVerticalOffset, previousSplitPedestalOffset, { allowZero: true }),
-      pedestalSpacing: Math.max(100, savedNumber(saved.pedestalSpacing, DEFAULTS.pedestalSpacing)),
-      manualPieceLength: savedNumber(saved.manualPieceLength, boardLength),
-      layDirection: saved.layDirection === "right" ? "right" : "left",
-    };
+    return normalizeConfig(JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"));
   } catch {
     return { ...DEFAULTS };
   }
@@ -67,12 +80,16 @@ export function applyConfig(inputs, config) {
   inputs.terraceLength.value = config.terraceLength;
   inputs.terraceWidth.value = config.terraceWidth;
   inputs.boardLength.value = config.boardLength;
+  inputs.stockBoards.value = config.stockBoards || "";
   inputs.boardWidth.value = config.boardWidth;
   inputs.gap.value = config.gap;
+  inputs.sawKerf.value = config.sawKerf;
   inputs.minOffcut.value = config.minOffcut;
   inputs.patternRows.value = config.patternRows;
-  inputs.joistEdgeOffset.value = config.joistEdgeOffset;
-  inputs.pedestalVerticalOffset.value = config.pedestalVerticalOffset;
+  inputs.joistLeftOffset.value = config.joistLeftOffset;
+  inputs.joistRightOffset.value = config.joistRightOffset;
+  inputs.pedestalTopOffset.value = config.pedestalTopOffset;
+  inputs.pedestalBottomOffset.value = config.pedestalBottomOffset;
   inputs.pedestalSpacing.value = config.pedestalSpacing;
   inputs.manualPieceLength.value = config.manualPieceLength;
   Array.from(inputs.layDirection).forEach((radio) => {
@@ -85,12 +102,16 @@ export function readConfig(inputs) {
     terraceLength: numberValue(inputs.terraceLength, DEFAULTS.terraceLength),
     terraceWidth: numberValue(inputs.terraceWidth, DEFAULTS.terraceWidth),
     boardLength: numberValue(inputs.boardLength, DEFAULTS.boardLength),
+    stockBoards: String(inputs.stockBoards?.value || "").trim(),
     boardWidth: numberValue(inputs.boardWidth, DEFAULTS.boardWidth),
     gap: Math.max(0, Number(inputs.gap.value) || 0),
+    sawKerf: Math.max(0, Number(inputs.sawKerf.value) || 0),
     minOffcut: Math.max(0, Number(inputs.minOffcut.value) || 0),
     patternRows: Math.max(1, Math.round(numberValue(inputs.patternRows, DEFAULTS.patternRows))),
-    joistEdgeOffset: Math.max(0, Number(inputs.joistEdgeOffset.value) || 0),
-    pedestalVerticalOffset: Math.max(0, Number(inputs.pedestalVerticalOffset.value) || 0),
+    joistLeftOffset: Math.max(0, Number(inputs.joistLeftOffset.value) || 0),
+    joistRightOffset: Math.max(0, Number(inputs.joistRightOffset.value) || 0),
+    pedestalTopOffset: Math.max(0, Number(inputs.pedestalTopOffset.value) || 0),
+    pedestalBottomOffset: Math.max(0, Number(inputs.pedestalBottomOffset.value) || 0),
     pedestalSpacing: Math.max(100, numberValue(inputs.pedestalSpacing, DEFAULTS.pedestalSpacing)),
     manualPieceLength: numberValue(inputs.manualPieceLength, inputs.boardLength.value || DEFAULTS.boardLength),
     layDirection: directionValue(inputs.layDirection),

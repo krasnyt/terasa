@@ -2,11 +2,12 @@
 
 import {
   boardRows,
+  getMaxStockLength,
   JOIST_BOARD_END_INSET,
   parseManualText,
   serializeManualPieces,
-} from "./layout.js?v=8";
-import { svgEl } from "./render.js?v=15";
+} from "./layout.js?v=12";
+import { svgEl } from "./render.js?v=24";
 
 export function createManualController({
   els,
@@ -162,15 +163,16 @@ export function createManualController({
 
   function handleSeamMove(e) {
     const config = readConfig();
+    const maxStockLength = getMaxStockLength(config);
     const data = clientToSvgData(e.clientX, e.clientY);
     if (!data) return;
 
     const minRightX = Math.max(...dragState.items.map((item) => Math.max(
       item.leftX + config.minOffcut + config.gap,
-      item.rightEnd - config.boardLength,
+      item.rightEnd - maxStockLength,
     )));
     const maxRightX = Math.min(...dragState.items.map((item) => Math.min(
-      item.leftX + config.boardLength + config.gap,
+      item.leftX + maxStockLength + config.gap,
       item.rightEnd - config.minOffcut,
     )));
     if (minRightX > maxRightX) return;
@@ -199,10 +201,10 @@ export function createManualController({
     if (!data) return;
 
     if (dragState.type === "resize-right") {
-      piece.length = Math.max(config.minOffcut, Math.min(config.boardLength, data.x - piece.x));
+      piece.length = Math.max(config.minOffcut, Math.min(getMaxStockLength(config), data.x - piece.x));
     } else {
       const fixedRight = dragState.originalX + dragState.originalLength;
-      const newLen = Math.max(config.minOffcut, Math.min(config.boardLength, fixedRight - data.x));
+      const newLen = Math.max(config.minOffcut, Math.min(getMaxStockLength(config), fixedRight - data.x));
       piece.x = fixedRight - newLen;
       piece.length = newLen;
     }
@@ -244,7 +246,7 @@ export function createManualController({
     const row = rowAtData(data.y, rows);
     if (!row) { clearSvgPreview(); dragState.previewRow = null; return; }
     const excludeId = dragState.type === "move" ? dragState.pieceId : null;
-    const pieceLength = dragState.pieceLength || config.boardLength;
+    const pieceLength = dragState.pieceLength || getMaxStockLength(config);
     const rawX = data.x - (dragState.grabOffsetX ?? 0);
     const snappedX = snapX(rawX, row.index, pieceLength, config, excludeId);
     dragState.previewX = snappedX;
@@ -308,7 +310,7 @@ export function createManualController({
           row: dragState.previewRow.index,
           x: dragState.previewX,
           y: dragState.previewRow.y,
-          length: dragState.pieceLength || config.boardLength,
+          length: dragState.pieceLength || getMaxStockLength(config),
           width: dragState.previewRow.width,
           patternIndex: dragState.previewRow.index % 4,
         });
@@ -336,7 +338,7 @@ export function createManualController({
     e.preventDefault();
     const config = readConfig();
     const rawLen = Number(els.manualPieceLength.value);
-    const pieceLength = rawLen > 0 ? rawLen : config.boardLength;
+    const pieceLength = rawLen > 0 ? rawLen : getMaxStockLength(config);
     dragState = { type: "palette", previewX: null, previewRow: null, pieceLength };
     els.paletteBoardChip.classList.add("is-dragging");
     els.svg.style.cursor = "crosshair";
@@ -359,7 +361,8 @@ export function createManualController({
   function startPieceDrag(e, pieceId) {
     e.preventDefault();
     const piece = state.manualPieces.find((p) => p.id === pieceId);
-    const pieceLength = piece?.length ?? readConfig().boardLength;
+    const config = readConfig();
+    const pieceLength = piece?.length ?? getMaxStockLength(config);
     const data = clientToSvgData(e.clientX, e.clientY);
     const grabOffsetX = data && piece ? data.x - piece.x : 0;
     dragState = { type: "move", pieceId, previewX: null, previewRow: null, pieceLength, grabOffsetX };
@@ -411,7 +414,7 @@ export function createManualController({
 
   function updatePaletteLabel() {
     const config = readConfig();
-    const len = Number(els.manualPieceLength.value) || config.boardLength;
+    const len = Number(els.manualPieceLength.value) || getMaxStockLength(config);
     els.paletteBoardChip.textContent = `Přetáhni prkno ${Math.round(len)} mm`;
   }
 

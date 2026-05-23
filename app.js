@@ -1,14 +1,17 @@
 "use strict";
 
-import { applyConfig, loadConfig, readConfig, STORAGE_KEY } from "./config.js?v=8";
+import { applyConfig, loadConfig, normalizeConfig, readConfig, STORAGE_KEY } from "./config.js?v=12";
 import {
   boardRows,
   computeJoistLayout,
   createAutoLayout,
+  getMaxStockLength,
   packBoards,
-} from "./layout.js?v=8";
-import { createManualController } from "./manual.js?v=9";
-import { createRenderer } from "./render.js?v=15";
+  piecesForCutPlan,
+  stockInventory,
+} from "./layout.js?v=14";
+import { createManualController } from "./manual.js?v=12";
+import { createRenderer } from "./render.js?v=26";
 
 const qs = (selector) => document.querySelector(selector);
 
@@ -26,12 +29,16 @@ const inputs = {
   terraceLength: qs("#terraceLength"),
   terraceWidth: qs("#terraceWidth"),
   boardLength: qs("#boardLength"),
+  stockBoards: qs("#stockBoards"),
   boardWidth: qs("#boardWidth"),
   gap: qs("#gap"),
+  sawKerf: qs("#sawKerf"),
   minOffcut: qs("#minOffcut"),
   patternRows: qs("#patternRows"),
-  joistEdgeOffset: qs("#joistEdgeOffset"),
-  pedestalVerticalOffset: qs("#pedestalVerticalOffset"),
+  joistLeftOffset: qs("#joistLeftOffset"),
+  joistRightOffset: qs("#joistRightOffset"),
+  pedestalTopOffset: qs("#pedestalTopOffset"),
+  pedestalBottomOffset: qs("#pedestalBottomOffset"),
   pedestalSpacing: qs("#pedestalSpacing"),
   manualPieceLength: qs("#manualPieceLength"),
   manualJoistPosition: qs("#manualJoistPosition"),
@@ -66,6 +73,10 @@ const els = {
   viewJoistsBtn: qs("#viewJoistsBtn"),
   viewBoardsBtn: qs("#viewBoardsBtn"),
   viewBothBtn: qs("#viewBothBtn"),
+  configText: qs("#configText"),
+  configExportBtn: qs("#configExportBtn"),
+  configImportBtn: qs("#configImportBtn"),
+  configStatus: qs("#configStatus"),
 };
 
 const renderer = createRenderer({ els, state, svgOrigin });
@@ -76,22 +87,29 @@ function readCurrentConfig() {
   return readConfig(inputs);
 }
 
+function currentStateSnapshot() {
+  return {
+    ...readCurrentConfig(),
+    layoutMode: state.layoutMode,
+    viewMode: state.viewMode,
+    manualPieces: state.manualPieces,
+    manualJoists: state.manualJoists,
+    cutouts: state.cutouts,
+  };
+}
+
+function saveCurrentStateNow() {
+  clearTimeout(saveTimer);
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(currentStateSnapshot()));
+  } catch {
+    // localStorage nedostupný (soukromé prohlížení apod.)
+  }
+}
+
 function scheduleSave() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        ...readCurrentConfig(),
-        layoutMode: state.layoutMode,
-        viewMode: state.viewMode,
-        manualPieces: state.manualPieces,
-        manualJoists: state.manualJoists,
-        cutouts: state.cutouts,
-      }));
-    } catch {
-      // localStorage nedostupný (soukromé prohlížení apod.)
-    }
-  }, 5000);
+  saveTimer = setTimeout(saveCurrentStateNow, 5000);
 }
 
 function clientToSvgData(clientX, clientY) {
@@ -318,19 +336,20 @@ function render() {
 
   if (state.layoutMode === "manual") {
     const currentLen = Number(els.manualPieceLength.value);
-    if (!currentLen || currentLen > config.boardLength) {
-      els.manualPieceLength.value = Math.round(config.boardLength);
+    const maxStockLength = getMaxStockLength(config);
+    if (!currentLen || currentLen > maxStockLength) {
+      els.manualPieceLength.value = Math.round(maxStockLength);
     }
     manualController.updatePaletteLabel();
     renderer.renderManualSvg(config);
     const rows = boardRows(config);
-    const packed = packBoards(state.manualPieces.map((p) => p.length), config.boardLength);
+    const packed = packBoards(piecesForCutPlan(state.manualPieces), config);
     state.manualJoists = normalizeManualJoists(config, state.manualJoists);
     renderManualJoistControls();
     const joistLayout = computeJoistLayout(config, state.manualPieces, state.cutouts, state.manualJoists);
     renderer.renderSummary(config, { rows, pieces: state.manualPieces, packed }, joistLayout);
     renderer.renderCutList(config, packed);
-    renderer.renderManualWarnings(config, rows);
+    renderer.renderManualWarnings(config, rows, packed.warnings);
     return;
   }
 
@@ -361,6 +380,97 @@ function escapeHtml(value) {
     .replace(/"/g, "&quot;");
 }
 
+function setConfigStatus(message, type = "") {
+  if (!els.configStatus) return;
+  els.configStatus.textContent = message;
+  els.configStatus.classList.toggle("is-error", type === "error");
+  els.configStatus.classList.toggle("is-ok", type === "ok");
+}
+
+function exportConfigText() {
+  return JSON.stringify({
+    format: "terasa-navrh",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    config: currentStateSnapshot(),
+  }, null, 2);
+}
+
+function copyTextFallback(text) {
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.top = "-1000px";
+  textarea.style.left = "-1000px";
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+  const copied = document.execCommand("copy");
+  textarea.remove();
+  if (!copied) throw new Error("copy-failed");
+}
+
+async function copyTextToClipboard(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  copyTextFallback(text);
+}
+
+async function exportConfig() {
+  const text = exportConfigText();
+  els.configText.value = text;
+  try {
+    await copyTextToClipboard(text);
+    setConfigStatus("Konfigurace je zkopírovaná do schránky.", "ok");
+  } catch {
+    setConfigStatus("Konfigurace je připravená v poli. Zkopíruj ji ručně.", "error");
+  }
+}
+
+function unwrapImportedConfig(parsed) {
+  if (parsed?.format === "terasa-navrh" && parsed.config) return parsed.config;
+  if (parsed?.config && typeof parsed.config === "object") return parsed.config;
+  if (parsed?.data && typeof parsed.data === "object") return parsed.data;
+  return parsed;
+}
+
+function parseImportedConfig(text) {
+  const parsed = JSON.parse(text);
+  const rawConfig = unwrapImportedConfig(parsed);
+  if (!rawConfig || typeof rawConfig !== "object" || Array.isArray(rawConfig)) {
+    throw new Error("invalid-config");
+  }
+  return normalizeConfig(rawConfig);
+}
+
+function importConfig() {
+  const text = els.configText.value.trim();
+  if (!text) {
+    setConfigStatus("Vlož nejdřív text exportované konfigurace.", "error");
+    return;
+  }
+
+  try {
+    const imported = parseImportedConfig(text);
+    applyConfig(inputs, imported);
+    state.manualPieces = Array.isArray(imported.manualPieces) ? imported.manualPieces : [];
+    state.manualJoists = Array.isArray(imported.manualJoists) ? imported.manualJoists : [];
+    state.cutouts = Array.isArray(imported.cutouts) ? imported.cutouts : [];
+    state.measure = { enabled: false, points: [], preview: null };
+    renderCutoutControls();
+    setMeasureEnabled(false);
+    setViewMode(imported.viewMode, { save: false });
+    setLayoutMode(imported.layoutMode === "manual" ? "manual" : "auto", { save: false });
+    saveCurrentStateNow();
+    setConfigStatus("Konfigurace je importovaná a uložená.", "ok");
+  } catch {
+    setConfigStatus("Konfiguraci se nepodařilo načíst. Zkontroluj, že vkládáš celý exportovaný text.", "error");
+  }
+}
+
 function modeLabel() {
   if (state.layoutMode === "manual") return "Ručně";
   return "Automat";
@@ -379,12 +489,16 @@ function configRows(config) {
     ["Délka terasy", `${Math.round(config.terraceLength)} mm`],
     ["Šířka terasy", `${Math.round(config.terraceWidth)} mm`],
     ["Délka prkna", `${Math.round(config.boardLength)} mm`],
+    ["Skladová prkna", stockInventory(config).label],
     ["Šířka prkna", `${Math.round(config.boardWidth)} mm`],
     ["Mezera", `${Math.round(config.gap)} mm`],
+    ["Tloušťka řezu", `${Math.round(config.sawKerf)} mm`],
     ["Min. odřezek", `${Math.round(config.minOffcut)} mm`],
     ["Začátek pokládky", config.layDirection === "right" ? "zprava" : "zleva"],
-    ["Odsazení terčů zleva/zprava", `${Math.round(config.joistEdgeOffset)} mm`],
-    ["Odsazení terčů shora/zdola", `${Math.round(config.pedestalVerticalOffset)} mm`],
+    ["Odsazení terčů zleva", `${Math.round(config.joistLeftOffset)} mm`],
+    ["Odsazení terčů zprava", `${Math.round(config.joistRightOffset)} mm`],
+    ["Odsazení terčů shora", `${Math.round(config.pedestalTopOffset)} mm`],
+    ["Odsazení terčů zdola", `${Math.round(config.pedestalBottomOffset)} mm`],
     ["Rozteč terčů", `${Math.round(config.pedestalSpacing)} mm`],
   ];
 
@@ -409,6 +523,13 @@ function pdfCutColumnCount(rowCount) {
   return 1;
 }
 
+function pdfCutRowsPerPage(columnCount) {
+  if (columnCount >= 4) return 128;
+  if (columnCount === 3) return 72;
+  if (columnCount === 2) return 42;
+  return 24;
+}
+
 function parseCssPercent(value) {
   const parsed = Number.parseFloat(String(value || "").replace("%", ""));
   return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
@@ -419,17 +540,21 @@ function renderPdfStockRow(row) {
   const meta = row.querySelector(".stock-meta")?.textContent.trim() || "";
   let x = 0;
 
-  const cutRects = Array.from(row.querySelectorAll(".stock-cut")).map((cut, index) => {
-    const width = parseCssPercent(cut.style.width);
-    const rect = `<rect x="${x.toFixed(3)}" y="0" width="${width.toFixed(3)}" height="10" fill="${index % 2 === 0 ? "#b98152" : "#d3a77c"}" />`;
+  let cutIndex = 0;
+  const stockSegments = Array.from(row.querySelectorAll(".stock-bar > span")).map((segment) => {
+    const width = parseCssPercent(segment.style.width);
+    let rect = "";
+    if (segment.classList.contains("stock-cut")) {
+      rect = `<rect x="${x.toFixed(3)}" y="0" width="${width.toFixed(3)}" height="10" fill="${cutIndex % 2 === 0 ? "#b98152" : "#d3a77c"}" />`;
+      cutIndex += 1;
+    } else if (segment.classList.contains("stock-kerf")) {
+      rect = `<rect x="${x.toFixed(3)}" y="0" width="${width.toFixed(3)}" height="10" fill="#667085" />`;
+    } else if (segment.classList.contains("stock-waste") && width > 0) {
+      rect = `<rect x="${x.toFixed(3)}" y="0" width="${width.toFixed(3)}" height="10" fill="#f3d4ca" /><path d="M ${x.toFixed(3)} 10 L ${(x + width).toFixed(3)} 0" stroke="#b42318" stroke-width="0.8" />`;
+    }
     x += width;
     return rect;
   }).join("");
-
-  const wasteWidth = parseCssPercent(row.querySelector(".stock-waste")?.style.width);
-  const wasteRect = wasteWidth > 0
-    ? `<rect x="${x.toFixed(3)}" y="0" width="${wasteWidth.toFixed(3)}" height="10" fill="#f3d4ca" /><path d="M ${x.toFixed(3)} 10 L ${(x + wasteWidth).toFixed(3)} 0" stroke="#b42318" stroke-width="0.8" />`
-    : "";
 
   return `
     <div class="stock-row pdf-stock-row">
@@ -437,8 +562,7 @@ function renderPdfStockRow(row) {
       <div class="stock-plan">
         <svg class="pdf-stock-svg" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true">
           <rect x="0" y="0" width="100" height="10" fill="#f8fafc" />
-          ${cutRects}
-          ${wasteRect}
+          ${stockSegments}
           <rect x="0" y="0" width="100" height="10" fill="none" stroke="#b8c2d1" stroke-width="0.6" />
         </svg>
         <span class="stock-meta">${escapeHtml(meta)}</span>
@@ -447,11 +571,7 @@ function renderPdfStockRow(row) {
   `;
 }
 
-function renderPdfCutList() {
-  const rows = Array.from(els.cutList.querySelectorAll(".stock-row"));
-  if (!rows.length) return els.cutList.innerHTML;
-
-  const columnCount = pdfCutColumnCount(rows.length);
+function renderPdfCutColumns(rows, columnCount) {
   const rowsPerColumn = Math.ceil(rows.length / columnCount);
   const columns = [];
 
@@ -465,6 +585,27 @@ function renderPdfCutList() {
   return `<div class="pdf-cut-columns" style="--pdf-cut-columns:${columns.length}">${columns.join("")}</div>`;
 }
 
+function renderPdfCutPageBodies() {
+  const rows = Array.from(els.cutList.querySelectorAll(".stock-row"));
+  if (!rows.length) return [els.cutList.innerHTML || "<p>Řezný plán není dostupný.</p>"];
+
+  const leadHtml = Array.from(els.cutList.children)
+    .filter((child) => !child.classList.contains("stock-row"))
+    .map((child) => child.outerHTML)
+    .join("");
+  const columnCount = pdfCutColumnCount(rows.length);
+  const rowsPerPage = pdfCutRowsPerPage(columnCount);
+  const pages = [];
+
+  for (let i = 0; i < rows.length; i += rowsPerPage) {
+    const pageRows = rows.slice(i, i + rowsPerPage);
+    const pageLeadHtml = pages.length === 0 ? leadHtml : "";
+    pages.push(`${pageLeadHtml}${renderPdfCutColumns(pageRows, columnCount)}`);
+  }
+
+  return pages;
+}
+
 function createPdfExportPage() {
   const existing = document.querySelector(".pdf-export-root");
   if (existing) existing.remove();
@@ -475,6 +616,25 @@ function createPdfExportPage() {
   root.setAttribute("aria-hidden", "true");
 
   const created = new Date();
+  const cutPageBodies = renderPdfCutPageBodies();
+  const cutPageCount = cutPageBodies.length;
+  const cutPages = cutPageBodies.map((body, index) => `
+    <div class="pdf-export-page pdf-cut-page">
+      <div class="pdf-export-content">
+        <header class="pdf-cut-page-header">
+          <div>
+            <h1>Řezný plán</h1>
+            <p>Plán pokládky terasy · ${created.toLocaleDateString("cs-CZ")} ${created.toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })}</p>
+          </div>
+          <span>${cutPageCount > 1 ? `strana ${index + 1} / ${cutPageCount}` : "samostatná stránka"}</span>
+        </header>
+        <section class="pdf-box pdf-cut-box pdf-cut-page-box">
+          ${body}
+        </section>
+      </div>
+    </div>
+  `).join("");
+
   root.innerHTML = `
     <div class="pdf-export-page">
       <div class="pdf-export-content">
@@ -494,18 +654,13 @@ function createPdfExportPage() {
             ${els.summary.innerHTML || "<p>Výstup není dostupný.</p>"}
           </section>
         </div>
-        <div class="pdf-bottom-grid">
-          <section class="pdf-box pdf-cut-box">
-            <h2>Řezný plán</h2>
-            ${renderPdfCutList()}
-          </section>
-          <section class="pdf-box pdf-notes-box">
-            <h2>Poznámky</h2>
-            <ul class="warnings">${els.warnings.innerHTML}</ul>
-          </section>
-        </div>
+        <section class="pdf-box pdf-notes-box pdf-notes-section">
+          <h2>Poznámky</h2>
+          <ul class="warnings">${els.warnings.innerHTML}</ul>
+        </section>
       </div>
     </div>
+    ${cutPages}
   `;
 
   root.querySelector(".pdf-drawing-box").appendChild(cloneCurrentSvg());
@@ -513,9 +668,10 @@ function createPdfExportPage() {
   return root;
 }
 
-function fitPdfToSinglePage(root) {
-  const page = root.querySelector(".pdf-export-page");
-  const content = root.querySelector(".pdf-export-content");
+function fitPdfPage(page) {
+  const content = page.querySelector(".pdf-export-content");
+  if (!content) return;
+
   content.style.setProperty("--pdf-scale", "1");
   content.style.width = "";
 
@@ -532,12 +688,16 @@ function fitPdfToSinglePage(root) {
   content.style.setProperty("--pdf-scale", String(fittedScale));
 }
 
+function fitPdfToPages(root) {
+  root.querySelectorAll(".pdf-export-page").forEach(fitPdfPage);
+}
+
 function exportPdf() {
   render();
   const root = createPdfExportPage();
 
   requestAnimationFrame(() => {
-    fitPdfToSinglePage(root);
+    fitPdfToPages(root);
     requestAnimationFrame(() => window.print());
   });
 
@@ -620,6 +780,8 @@ function bindEvents() {
   els.viewBothBtn.addEventListener("click", () => setViewMode("both"));
   els.measureToolBtn.addEventListener("click", () => setMeasureEnabled(!state.measure.enabled));
   els.pdfExportBtn.addEventListener("click", exportPdf);
+  els.configExportBtn.addEventListener("click", exportConfig);
+  els.configImportBtn.addEventListener("click", importConfig);
   els.svg.addEventListener("pointerdown", handleMeasurePointerDown);
   els.svg.addEventListener("pointermove", handleMeasurePointerMove);
   document.addEventListener("keydown", (event) => {

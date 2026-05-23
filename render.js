@@ -8,9 +8,18 @@ import {
   cutoutYRange,
   fullLastBoardInfo,
   JOIST_BOARD_END_INSET,
-} from "./layout.js?v=8";
+} from "./layout.js?v=14";
 
 const svgNS = "http://www.w3.org/2000/svg";
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
 
 export function svgEl(name, attrs = {}) {
   const element = document.createElementNS(svgNS, name);
@@ -116,6 +125,105 @@ export function createRenderer({ els, state, svgOrigin }) {
       x2,
       y2,
     }));
+  }
+
+  function scaleStep(length) {
+    const target = Math.max(1, length / 7);
+    return [50, 100, 250, 500, 1000, 2000, 5000, 10000].find((step) => step >= target) || 10000;
+  }
+
+  function renderCanvasScale(config, originX, originY) {
+    const group = svgEl("g", { class: "canvas-scale-layer" });
+    els.svg.appendChild(group);
+
+    const majorX = scaleStep(config.terraceLength);
+    const majorY = scaleStep(config.terraceWidth);
+    const minorX = majorX / 5;
+    const minorY = majorY / 5;
+    const topY = 125;
+    const leftX = 150;
+    const deckRightX = originX + config.terraceLength;
+    const deckBottomY = originY + config.terraceWidth;
+
+    group.appendChild(svgEl("line", {
+      class: "canvas-scale-axis",
+      x1: originX,
+      y1: topY,
+      x2: deckRightX,
+      y2: topY,
+    }));
+    group.appendChild(svgEl("line", {
+      class: "canvas-scale-axis",
+      x1: leftX,
+      y1: originY,
+      x2: leftX,
+      y2: deckBottomY,
+    }));
+
+    const drawTopTick = (value, forceMajor = false) => {
+      const rounded = Math.round(value);
+      const isMajor = forceMajor || rounded % majorX === 0;
+      const x = originX + Math.min(value, config.terraceLength);
+      group.appendChild(svgEl("line", {
+        class: `canvas-scale-tick${isMajor ? " is-major" : ""}`,
+        x1: x,
+        y1: topY,
+        x2: x,
+        y2: topY + (isMajor ? 28 : 16),
+      }));
+      if (isMajor) {
+        appendDimensionText(group, {
+          label: `${Math.round(Math.min(value, config.terraceLength))}`,
+          x,
+          y: topY - 16,
+          className: "canvas-scale-label canvas-scale-top-label",
+        });
+      }
+    };
+
+    const drawLeftTick = (value, forceMajor = false) => {
+      const rounded = Math.round(value);
+      const isMajor = forceMajor || rounded % majorY === 0;
+      const y = originY + Math.min(value, config.terraceWidth);
+      group.appendChild(svgEl("line", {
+        class: `canvas-scale-tick${isMajor ? " is-major" : ""}`,
+        x1: leftX,
+        y1: y,
+        x2: leftX + (isMajor ? 42 : 24),
+        y2: y,
+      }));
+      if (isMajor) {
+        appendDimensionText(group, {
+          label: `${Math.round(Math.min(value, config.terraceWidth))}`,
+          x: leftX - 18,
+          y: y + 14,
+          anchor: "end",
+          className: "canvas-scale-label",
+        });
+      }
+    };
+
+    for (let value = 0; value <= config.terraceLength + 0.5; value += minorX) {
+      drawTopTick(value);
+    }
+    if (Math.round(config.terraceLength) % majorX !== 0) {
+      drawTopTick(config.terraceLength, true);
+    }
+
+    for (let value = 0; value <= config.terraceWidth + 0.5; value += minorY) {
+      drawLeftTick(value);
+    }
+    if (Math.round(config.terraceWidth) % majorY !== 0) {
+      drawLeftTick(config.terraceWidth, true);
+    }
+
+    appendDimensionText(group, {
+      label: "mm",
+      x: originX - 42,
+      y: topY - 16,
+      anchor: "end",
+      className: "canvas-scale-label canvas-scale-top-label canvas-scale-unit",
+    });
   }
 
   function asJoistLayout(config, piecesOrLayout, maybeCutouts, maybeExtraPositions) {
@@ -551,7 +659,7 @@ export function createRenderer({ els, state, svgOrigin }) {
       .filter((cutout) => cutout.edge === "bottom")
       .reduce((max, cutout) => Math.max(max, Number(cutout.depth) || 0), 0);
     const pad = Math.max(220, config.terraceLength * 0.08);
-    const topPad = Math.max(180, pad * 0.4, topCutoutDepth + 160);
+    const topPad = Math.max(360, pad * 0.4, topCutoutDepth + 360);
     const bottomPad = Math.max(240, pad * 0.45, config.boardWidth + 90, bottomCutoutDepth + 240);
     const rightDimensionPad = Math.max(pad, 780);
     const viewWidth = config.terraceLength + pad + rightDimensionPad;
@@ -564,6 +672,7 @@ export function createRenderer({ els, state, svgOrigin }) {
     els.svg.setAttribute("viewBox", `0 0 ${viewWidth} ${viewHeight}`);
     els.svg.style.aspectRatio = `${viewWidth} / ${viewHeight}`;
     renderDimensionDefs();
+    renderCanvasScale(config, originX, originY);
 
     els.svg.appendChild(svgEl("rect", {
       class: "deck-outline",
@@ -688,10 +797,22 @@ export function createRenderer({ els, state, svgOrigin }) {
   function renderSummary(config, layout, joistLayout) {
     const actualJoistLayout = asJoistLayout(config, joistLayout, state.cutouts);
     const pieceCount = layout.pieces.length;
+    const cutPlanInvalid = Boolean(layout.packed.invalid);
     const used = layout.packed.reduce((sum, board) => sum + board.cuts.reduce((inner, cut) => inner + cut, 0), 0);
-    const purchased = layout.packed.length * config.boardLength;
+    const purchased = layout.packed.reduce((sum, board) => sum + (Number(board.length) || config.boardLength), 0);
+    const offcutWaste = layout.packed.reduce((sum, board) => sum + (Number(board.remaining) || 0), 0);
+    const sawWaste = layout.packed.reduce((sum, board) => sum + (Number(board.sawWaste) || 0), 0);
     const waste = Math.max(0, purchased - used);
     const coverageWidth = layout.rows.reduce((sum, row) => sum + row.width, 0) + Math.max(0, layout.rows.length - 1) * config.gap;
+    const stockByLength = layout.packed.reduce((map, board) => {
+      const length = Number(board.length) || config.boardLength;
+      map.set(length, (map.get(length) || 0) + 1);
+      return map;
+    }, new Map());
+    const stockDetail = Array.from(stockByLength.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([length, count]) => `${count}x${Math.round(length)} mm`)
+      .join("; ");
 
     const spacerCount = layout.rows.reduce((sum, row) => {
       const piecesInRow = layout.pieces.filter((p) => p.row === row.index).length;
@@ -718,10 +839,10 @@ export function createRenderer({ els, state, svgOrigin }) {
     const turboScrewCount = pedestalLayout.count * 4;
 
     const topItems = [
-      ["Skladová prkna", `${layout.packed.length} ks`],
+      ["Skladová prkna", cutPlanInvalid ? "nelze sestavit" : { html: `<span class="summary-main">${layout.packed.length} ks</span>${stockDetail ? `<span class="summary-detail">${stockDetail}</span>` : ""}` }],
       ["Položené řady", `${layout.rows.length} řad`],
       ["Řezané díly", `${pieceCount} ks`],
-      ["Celkový odpad", `${Math.round(waste)} mm (${purchased ? ((waste / purchased) * 100).toFixed(1) : "0.0"} %)`],
+      ["Celkový odpad", cutPlanInvalid ? "nelze spočítat" : { html: `<span class="summary-main">${Math.round(waste)} mm (${purchased ? ((waste / purchased) * 100).toFixed(1) : "0.0"} %)</span><span class="summary-detail">odřezky ${Math.round(offcutWaste)} mm + prořez ${Math.round(sawWaste)} mm</span>` }],
       ["Pokrytá šířka", `${Math.round(Math.min(coverageWidth, config.terraceWidth))} mm`],
     ];
 
@@ -740,25 +861,48 @@ export function createRenderer({ els, state, svgOrigin }) {
 
   function renderCutList(config, boards) {
     if (!boards.length) {
-      els.cutList.innerHTML = "<p class=\"hint\">Zatím nejsou žádné díly.</p>";
+      els.cutList.innerHTML = boards.invalid
+        ? "<p class=\"hint cut-list-warning\">Řezný plán nelze z dostupné zásoby kompletně sestavit.</p>"
+        : "<p class=\"hint\">Zatím nejsou žádné díly.</p>";
       return;
     }
 
-    els.cutList.innerHTML = boards.map((board, index) => {
-      const cuts = board.cuts.map((cut) => {
-        const width = Math.max(2, (cut / config.boardLength) * 100);
-        return `<span class="stock-cut" style="width:${width}%" title="${cut} mm"></span>`;
+    const invalidHint = boards.invalid ? "<p class=\"hint cut-list-warning\">Řezný plán nelze z dostupné zásoby kompletně sestavit.</p>" : "";
+    const sortedBoards = boards
+      .map((board, originalIndex) => ({ board, originalIndex }))
+      .sort((a, b) => {
+        const lengthDiff = (Number(a.board.length) || config.boardLength) - (Number(b.board.length) || config.boardLength);
+        return lengthDiff || a.originalIndex - b.originalIndex;
+      });
+    els.cutList.innerHTML = invalidHint + sortedBoards.map(({ board }, index) => {
+      const boardLength = Number(board.length) || config.boardLength;
+      const cutDetails = Array.isArray(board.cutDetails) && board.cutDetails.length
+        ? board.cutDetails
+        : board.cuts.map((cut) => ({ length: cut, label: "" }));
+      const cutLabels = cutDetails.map((detail) => {
+        const length = Math.round(Number(detail.length) || 0);
+        return `${length} mm${detail.label ? ` (${detail.label})` : ""}`;
+      });
+      const segments = board.cuts.map((cut, cutIndex) => {
+        const width = Math.max(2, (cut / boardLength) * 100);
+        const kerf = Number(board.kerfs?.[cutIndex]) || 0;
+        const kerfWidth = kerf > 0 ? Math.max(0.5, (kerf / boardLength) * 100) : 0;
+        const label = cutLabels[cutIndex] || `${Math.round(cut)} mm`;
+        return `<span class="stock-cut" style="width:${width}%" title="${escapeHtml(label)}"></span>${kerfWidth > 0 ? `<span class="stock-kerf" style="width:${kerfWidth}%" title="prořez ${Math.round(kerf)} mm"></span>` : ""}`;
       }).join("");
-      const wasteWidth = Math.max(0, (board.remaining / config.boardLength) * 100);
+      const wasteWidth = Math.max(0, (board.remaining / boardLength) * 100);
+      const sawWaste = Math.round(Number(board.sawWaste) || 0);
+      const wasteLabel = `odpad ${Math.round(board.remaining)} mm${sawWaste ? ` / prořez ${sawWaste} mm` : ""}`;
+      const meta = `${cutLabels.join(" + ")} / ${wasteLabel}`;
       return `
         <div class="stock-row">
-          <strong class="stock-label">Prkno ${index + 1}</strong>
+          <strong class="stock-label">Prkno ${index + 1}<span class="stock-length">${Math.round(boardLength)} mm</span></strong>
           <div class="stock-plan">
-            <div class="stock-bar" aria-label="Prkno ${index + 1}: ${board.cuts.join(" + ")} mm">
-              ${cuts}
+            <div class="stock-bar" aria-label="${escapeHtml(`Prkno ${index + 1}: ${meta}`)}">
+              ${segments}
               <span class="stock-waste" style="width:${wasteWidth}%"></span>
             </div>
-            <span class="stock-meta">${board.cuts.join(" + ")} / odpad ${Math.round(board.remaining)} mm</span>
+            <span class="stock-meta">${escapeHtml(meta)}</span>
           </div>
         </div>
       `;
@@ -797,8 +941,8 @@ export function createRenderer({ els, state, svgOrigin }) {
     )).join("");
   }
 
-  function renderManualWarnings(config, rows) {
-    const warnings = [];
+  function renderManualWarnings(config, rows, extraWarnings = []) {
+    const warnings = [...extraWarnings];
 
     if (state.manualPieces.length === 0) {
       warnings.push({ type: "info", text: "Přetáhni prkna z palety na výkres." });

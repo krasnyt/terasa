@@ -225,10 +225,57 @@ details[open] > summary.panel-title-row::before {
   opacity: 0.52;
 }
 
+.config-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.config-panel h2 {
+  margin-bottom: 0;
+}
+
+.config-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+}
+
+.config-text-label {
+  display: grid;
+  gap: 6px;
+}
+
+.config-text-label textarea {
+  min-height: 86px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.config-status {
+  min-height: 1.3em;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.config-status.is-ok {
+  color: #137333;
+}
+
+.config-status.is-error {
+  color: var(--danger);
+}
+
 .field-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+}
+
+.field-wide {
+  grid-column: 1 / -1;
 }
 
 label {
@@ -417,6 +464,13 @@ input,
 select {
   height: 38px;
   padding: 0 10px;
+}
+
+.stock-input {
+  height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
 }
 
 textarea {
@@ -1087,6 +1141,47 @@ textarea {
   pointer-events: none;
 }
 
+.canvas-scale-layer {
+  pointer-events: none;
+}
+
+.canvas-scale-axis {
+  stroke: rgba(52, 64, 84, 0.55);
+  stroke-width: 4;
+}
+
+.canvas-scale-tick {
+  stroke: rgba(52, 64, 84, 0.45);
+  stroke-width: 3;
+}
+
+.canvas-scale-tick.is-major {
+  stroke: rgba(52, 64, 84, 0.72);
+  stroke-width: 4;
+}
+
+.canvas-scale-label {
+  fill: #475467;
+  font-size: 44px;
+  font-weight: 800;
+  paint-order: stroke;
+  pointer-events: none;
+  stroke: rgba(255, 255, 255, 0.92);
+  stroke-linejoin: round;
+  stroke-width: 12px;
+  text-anchor: middle;
+}
+
+.canvas-scale-unit {
+  fill: #667085;
+  font-size: 40px;
+}
+
+.canvas-scale-top-label {
+  font-size: 34px;
+  stroke-width: 9px;
+}
+
 .measure-layer {
   pointer-events: none;
 }
@@ -1211,7 +1306,15 @@ textarea {
 }
 
 .stock-label {
+  display: grid;
+  gap: 1px;
   padding-top: 1px;
+}
+
+.stock-length {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 650;
 }
 
 .stock-plan {
@@ -1238,10 +1341,27 @@ textarea {
   overflow-wrap: anywhere;
 }
 
+.cut-list-warning {
+  margin-bottom: 2px;
+  color: var(--danger);
+  font-weight: 750;
+}
+
 .stock-cut {
   flex: 0 1 auto;
   border-right: 1px solid rgba(255, 255, 255, 0.7);
   background: var(--board);
+}
+
+.stock-kerf {
+  flex: 0 1 auto;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(31, 41, 51, 0.38) 0,
+    rgba(31, 41, 51, 0.38) 2px,
+    rgba(31, 41, 51, 0.18) 2px,
+    rgba(31, 41, 51, 0.18) 4px
+  );
 }
 
 .stock-waste {
@@ -1279,8 +1399,8 @@ textarea {
   top: 0;
   left: 0;
   width: 297mm;
-  height: 210mm;
-  overflow: hidden;
+  min-height: 210mm;
+  overflow: visible;
   background: #fff;
   opacity: 0;
   pointer-events: none;
@@ -1413,6 +1533,10 @@ textarea {
   margin-top: 5px;
 }
 
+.pdf-notes-section {
+  margin-top: 5px;
+}
+
 .pdf-cut-box .cut-list {
   display: grid;
   gap: 2px;
@@ -1456,6 +1580,31 @@ textarea {
   padding-left: 13px;
   font-size: 10px;
   line-height: 1.2;
+}
+
+.pdf-cut-page-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--line);
+}
+
+.pdf-cut-page-header h1 {
+  margin-bottom: 2px;
+  font-size: 19px;
+}
+
+.pdf-cut-page-header p,
+.pdf-cut-page-header span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.pdf-cut-page-box {
+  margin-top: 5px;
 }
 
 .pdf-cut-columns[style*="--pdf-cut-columns:4"] .stock-row {
@@ -1535,7 +1684,7 @@ textarea {
   html,
   body {
     width: 297mm;
-    height: 210mm;
+    min-height: 210mm;
     margin: 0;
     background: #fff !important;
   }
@@ -1549,15 +1698,20 @@ textarea {
     z-index: auto;
     display: block !important;
     width: 297mm;
-    height: 210mm;
+    height: auto;
     opacity: 1;
-    overflow: hidden;
+    overflow: visible;
     pointer-events: auto;
   }
 
   .pdf-export-page {
     width: 297mm;
     height: 210mm;
+    break-after: page;
     box-shadow: none;
+  }
+
+  .pdf-export-page:last-child {
+    break-after: auto;
   }
 }
