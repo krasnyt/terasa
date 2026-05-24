@@ -3,11 +3,11 @@
 import {
   boardRows,
   getMaxStockLength,
-  JOIST_BOARD_END_INSET,
+  joistBoardEndInset,
   parseManualText,
   serializeManualPieces,
-} from "./layout.js?v=12";
-import { svgEl } from "./render.js?v=24";
+} from "./layout.js?v=15";
+import { svgEl } from "./render.js?v=28";
 
 export function createManualController({
   els,
@@ -137,6 +137,7 @@ export function createManualController({
   function seamGroupAtData(data, config, threshold) {
     let best = null;
     let bestDist = threshold;
+    const endInset = joistBoardEndInset(config);
     manualSeamGroups(config).forEach((group) => {
       group.seams.forEach((seam) => {
         const rowTop = seam.row.y;
@@ -144,8 +145,8 @@ export function createManualController({
         const yDist = data.y < rowTop ? rowTop - data.y : Math.max(0, data.y - rowBottom);
         if (yDist > threshold) return;
 
-        const leftJoistX = seam.left.x + seam.left.length - JOIST_BOARD_END_INSET;
-        const rightJoistX = seam.right.x + JOIST_BOARD_END_INSET;
+        const leftJoistX = seam.left.x + seam.left.length - endInset;
+        const rightJoistX = seam.right.x + endInset;
         const xDist = Math.min(
           Math.abs(data.x - group.x),
           Math.abs(data.x - leftJoistX),

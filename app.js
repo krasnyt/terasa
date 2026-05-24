@@ -1,6 +1,6 @@
 "use strict";
 
-import { applyConfig, loadConfig, normalizeConfig, readConfig, STORAGE_KEY } from "./config.js?v=12";
+import { applyConfig, loadConfig, normalizeConfig, readConfig, STORAGE_KEY } from "./config.js?v=13";
 import {
   boardRows,
   computeJoistLayout,
@@ -9,9 +9,9 @@ import {
   packBoards,
   piecesForCutPlan,
   stockInventory,
-} from "./layout.js?v=14";
-import { createManualController } from "./manual.js?v=12";
-import { createRenderer } from "./render.js?v=26";
+} from "./layout.js?v=15";
+import { createManualController } from "./manual.js?v=13";
+import { createRenderer } from "./render.js?v=28";
 
 const qs = (selector) => document.querySelector(selector);
 
@@ -35,6 +35,7 @@ const inputs = {
   sawKerf: qs("#sawKerf"),
   minOffcut: qs("#minOffcut"),
   patternRows: qs("#patternRows"),
+  joistEndInset: qs("#joistEndInset"),
   joistLeftOffset: qs("#joistLeftOffset"),
   joistRightOffset: qs("#joistRightOffset"),
   pedestalTopOffset: qs("#pedestalTopOffset"),
@@ -495,6 +496,7 @@ function configRows(config) {
     ["Tloušťka řezu", `${Math.round(config.sawKerf)} mm`],
     ["Min. odřezek", `${Math.round(config.minOffcut)} mm`],
     ["Začátek pokládky", config.layDirection === "right" ? "zprava" : "zleva"],
+    ["Odsazení hranolovníku od konce prkna", `${Math.round(config.joistEndInset)} mm`],
     ["Odsazení terčů zleva", `${Math.round(config.joistLeftOffset)} mm`],
     ["Odsazení terčů zprava", `${Math.round(config.joistRightOffset)} mm`],
     ["Odsazení terčů shora", `${Math.round(config.pedestalTopOffset)} mm`],

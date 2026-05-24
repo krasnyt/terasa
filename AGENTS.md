@@ -23,6 +23,7 @@ Tento soubor je průběžný popis funkcí aplikace. Při každém přidání, z
 - Minimální použitelný odřezek v milimetrech.
 - Počet řad, po kterých se má opakovat vzor spár (pouze v režimu Automat).
 - Začátek pokládky automaticky generovaných řad: zleva nebo zprava. Volba se používá v režimu Automat.
+- Odsazení hranolovníku od vnitřního konce prkna v milimetrech (výchozí 18 mm). U napojení dvou prken se od středu spáry každý z dvojice hranolovníků umístí o tuto hodnotu plus polovinu mezery.
 - Samostatné odsazení rektifikačních terčů od levého a pravého okraje terasy a od horního a dolního kraje každého úseku podkladního hranolu v milimetrech. Hodnoty zleva a zprava zároveň určují odsazení krajních hranolovníků.
 - Preferovaná rozteč rektifikačních terčů pod jedním hranolem v milimetrech (výchozí 500 mm).
 - U všech vstupů je ikona nápovědy s vysvětlivkou při hoveru, focusu nebo kliknutí.
@@ -81,11 +82,11 @@ Aplikace nabízí dva režimy přepínatelné segmentovaným tlačítkem „Auto
 
 ## Podkladní hranoly
 
-- Aplikace počítá pozice podkladních hranolovníků: u vnitřních konců prken je vždy samostatný hranol odsazený přibližně 18 mm dovnitř od konce prkna. U napojení dvou prken na délku tak vznikne dvojice hranolů kolem spáry, aby měl každý konec vlastní kotvení. Navíc jsou krajní hranoly odsazené od levého a pravého kraje terasy podle samostatných hodnot ve vstupu „Odsazení rektifikačních terčů".
+- Aplikace počítá pozice podkladních hranolovníků: u vnitřních konců prken je vždy samostatný hranol odsazený dovnitř od konce prkna podle vstupu „Odsazení hranolovníku od konce prkna". U napojení dvou prken na délku tak vznikne dvojice hranolů kolem spáry, aby měl každý konec vlastní kotvení. Navíc jsou krajní hranoly odsazené od levého a pravého kraje terasy podle samostatných hodnot ve vstupu „Odsazení rektifikačních terčů".
 - Pozice hranolovníků jsou unikátní x-souřadnice přes všechny řady vzoru.
 - Pokud je zadaný zářez, hranolovník v jeho X rozsahu se prodlouží ven od základního obdélníku terasy podle hloubky zářezu. Kóty mezi hranolovníky zůstávají podle X souřadnic, ale celková délka hranolů vychází ze skutečných úseků včetně prodloužení do zářezu.
 - Ve výkresu jsou hranolovníky zobrazeny jako svislé přerušované čáry v hnědo-oranžové barvě. Jsou vykresleny pod prkny, takže jsou viditelné pouze v mezerách mezi řadami — prkna je překrývají.
-- **Kotvící body vrutů:** v každém průniku prkna s hranolem jsou na prkně dvě malé černé tečky (jeden vrut u horního, druhý u dolního okraje prkna). Tečky odpovídají dvěma vrutům, kterými je prkno přichycené k hranolu. U napojení dvou prken vzniknou dva hranoly kolem spáry: konec levého prkna se kotví do levého hranolu a začátek pravého prkna do pravého hranolu. Body jsou odsazené přibližně 18 mm od konce příslušného prkna, takže ve spáře jsou viditelné celkem **4 body**, ale každý pár patří k vlastnímu hranolu.
+- **Kotvící body vrutů:** v každém průniku prkna s hranolem jsou na prkně dvě malé černé tečky (jeden vrut u horního, druhý u dolního okraje prkna). Tečky odpovídají dvěma vrutům, kterými je prkno přichycené k hranolu. U napojení dvou prken vzniknou dva hranoly kolem spáry: konec levého prkna se kotví do levého hranolu a začátek pravého prkna do pravého hranolu. Body jsou vodorovně odsazené od konce příslušného prkna podle vstupu „Odsazení hranolovníku od konce prkna", takže ve spáře jsou viditelné celkem **4 body**, ale každý pár patří k vlastnímu hranolu.
 - **Rektifikační terče:** pod každým úsekem podkladního hranolu se vykreslí modré značky terčů. Krajní hranolovníky s terči jsou od levého a pravého okraje odsazené podle samostatných hodnot „Zleva" a „Zprava"; první a poslední terč každého úseku hranolu jsou od horního a dolního kraje odsazené podle samostatných hodnot „Shora" a „Zdola". Mezi nimi se terče rovnoměrně rozloží tak, aby nepřekročily vstup „Rozteč rektifikačních terčů". Pokud je úsek kratší než součet odsazení shora a zdola, vykreslí se jeden terč uprostřed úseku.
 - Nad terasou jsou tick marky a kóty vzdáleností mezi všemi sousedními hranolovníky, včetně kót od okraje terasy k prvnímu a poslednímu hranolu.
 

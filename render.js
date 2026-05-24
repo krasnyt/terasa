@@ -7,8 +7,8 @@ import {
   computeRowCoverage,
   cutoutYRange,
   fullLastBoardInfo,
-  JOIST_BOARD_END_INSET,
-} from "./layout.js?v=14";
+  joistBoardEndInset,
+} from "./layout.js?v=15";
 
 const svgNS = "http://www.w3.org/2000/svg";
 
@@ -473,7 +473,7 @@ export function createRenderer({ els, state, svgOrigin }) {
   function renderScrewDots(pieces, joistLayout, config, originX, originY) {
     const group = svgEl("g", { class: "screw-layer" });
     els.svg.appendChild(group);
-    const edgeInset = JOIST_BOARD_END_INSET;
+    const edgeInset = joistBoardEndInset(config);
     const tol = config.gap + 0.5;
     for (const p of pieces) {
       const widthInset = Math.max(18, p.width * 0.15);

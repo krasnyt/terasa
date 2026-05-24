@@ -2,6 +2,11 @@
 
 export const JOIST_BOARD_END_INSET = 18;
 
+export function joistBoardEndInset(config) {
+  const value = Number(config?.joistEndInset ?? JOIST_BOARD_END_INSET);
+  return Number.isFinite(value) && value >= 0 ? value : JOIST_BOARD_END_INSET;
+}
+
 export function boardRows(config) {
   const pitch = config.boardWidth + config.gap;
   const rows = Math.max(1, Math.ceil((config.terraceWidth + config.gap) / pitch));
@@ -375,6 +380,7 @@ export function computeRowCoverage(rowIndex, pieces, config) {
 
 export function computeJoistPositions(config, pieces, extraPositions = []) {
   const half = Math.round(config.terraceLength / 2);
+  const endInset = joistBoardEndInset(config);
   const leftOffset = Math.max(0, Number(config.joistLeftOffset ?? config.joistEdgeOffset) || 0);
   const rightOffset = Math.max(0, Number(config.joistRightOffset ?? config.joistEdgeOffset) || 0);
   const leftEdge = Math.min(leftOffset, half);
@@ -386,10 +392,10 @@ export function computeJoistPositions(config, pieces, extraPositions = []) {
     const left = Number(piece.x) || 0;
     const right = left + (Number(piece.length) || 0);
     if (left > 0.5 && left < config.terraceLength - 0.5) {
-      all.add(Math.round(clampX(left + JOIST_BOARD_END_INSET)));
+      all.add(Math.round(clampX(left + endInset)));
     }
     if (right > 0.5 && right < config.terraceLength - 0.5) {
-      all.add(Math.round(clampX(right - JOIST_BOARD_END_INSET)));
+      all.add(Math.round(clampX(right - endInset)));
     }
   });
 

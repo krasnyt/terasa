@@ -10,6 +10,7 @@ export const DEFAULTS = {
   sawKerf: 2,
   minOffcut: 250,
   patternRows: 3,
+  joistEndInset: 18,
   joistLeftOffset: 200,
   joistRightOffset: 200,
   pedestalTopOffset: 300,
@@ -58,6 +59,7 @@ export function normalizeConfig(value = {}) {
     sawKerf: savedNumber(saved.sawKerf, DEFAULTS.sawKerf, { allowZero: true }),
     minOffcut: savedNumber(saved.minOffcut, DEFAULTS.minOffcut, { allowZero: true }),
     patternRows: Math.max(1, Math.round(savedNumber(saved.patternRows, DEFAULTS.patternRows))),
+    joistEndInset: savedNumber(saved.joistEndInset, DEFAULTS.joistEndInset, { allowZero: true }),
     joistLeftOffset: savedNumber(saved.joistLeftOffset, legacyJoistOffset, { allowZero: true }),
     joistRightOffset: savedNumber(saved.joistRightOffset, legacyJoistOffset, { allowZero: true }),
     pedestalTopOffset: savedNumber(saved.pedestalTopOffset, previousSplitPedestalOffset, { allowZero: true }),
@@ -86,6 +88,7 @@ export function applyConfig(inputs, config) {
   inputs.sawKerf.value = config.sawKerf;
   inputs.minOffcut.value = config.minOffcut;
   inputs.patternRows.value = config.patternRows;
+  inputs.joistEndInset.value = config.joistEndInset;
   inputs.joistLeftOffset.value = config.joistLeftOffset;
   inputs.joistRightOffset.value = config.joistRightOffset;
   inputs.pedestalTopOffset.value = config.pedestalTopOffset;
@@ -108,6 +111,7 @@ export function readConfig(inputs) {
     sawKerf: Math.max(0, Number(inputs.sawKerf.value) || 0),
     minOffcut: Math.max(0, Number(inputs.minOffcut.value) || 0),
     patternRows: Math.max(1, Math.round(numberValue(inputs.patternRows, DEFAULTS.patternRows))),
+    joistEndInset: Math.max(0, Number(inputs.joistEndInset.value) || 0),
     joistLeftOffset: Math.max(0, Number(inputs.joistLeftOffset.value) || 0),
     joistRightOffset: Math.max(0, Number(inputs.joistRightOffset.value) || 0),
     pedestalTopOffset: Math.max(0, Number(inputs.pedestalTopOffset.value) || 0),
