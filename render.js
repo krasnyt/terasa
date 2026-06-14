@@ -8,7 +8,7 @@ import {
   cutoutYRange,
   fullLastBoardInfo,
   joistBoardEndInset,
-} from "./layout.js?v=15";
+} from "./layout.js?v=17";
 
 const svgNS = "http://www.w3.org/2000/svg";
 
@@ -244,9 +244,10 @@ export function createRenderer({ els, state, svgOrigin }) {
     const topCutoutDepth = joistLayout.cutouts
       .filter((cutout) => cutout.edge === "top")
       .reduce((max, cutout) => Math.max(max, cutout.depth), 0);
-    const tickTop = originY - topCutoutDepth - 28;
-    const dimLineY = originY - topCutoutDepth - 72;
-    const dimLabelY = originY - topCutoutDepth - 96;
+    const posLabelY = originY - topCutoutDepth - 150;
+    const tickTop = originY - topCutoutDepth - 132;
+    const dimLabelY = originY - topCutoutDepth - 80;
+    const dimLineY = originY - topCutoutDepth - 56;
     const edgeLeft = originX;
     const edgeRight = originX + config.terraceLength;
 
@@ -297,6 +298,13 @@ export function createRenderer({ els, state, svgOrigin }) {
       });
 
       drawTick(svgX);
+
+      appendDimensionText(group, {
+        label: `${Math.round(x)}`,
+        x: svgX,
+        y: posLabelY,
+        className: "dimension-label joist-position-label",
+      });
 
       if (i > 0) {
         drawSpanDim(originX + joistPositions[i - 1], svgX);
@@ -814,10 +822,19 @@ export function createRenderer({ els, state, svgOrigin }) {
       .map(([length, count]) => `${count}x${Math.round(length)} mm`)
       .join("; ");
 
-    const spacerCount = layout.rows.reduce((sum, row) => {
-      const piecesInRow = layout.pieces.filter((p) => p.row === row.index).length;
-      return sum + (piecesInRow > 0 ? piecesInRow + 1 : 0);
-    }, 0);
+    // Distanční podložky leží na hranolovníku v podélných mezerách mezi prkny a drží
+    // 7mm rozteč řad. Jedna podložka je na každé vodorovné hraně prkna (obě krajní hrany
+    // i vnitřní mezery), na každém hranolovníku, který tou hranou prochází. Počet hran =
+    // počet řad, které hranolovník protíná, + 1. Rozsah hranolovníku zahrnuje i prodloužení
+    // do zářezu, takže podložky v zářezu se počítají.
+    const spacerPitch = config.boardWidth + config.gap;
+    const spacerCount = spacerPitch > 0
+      ? actualJoistLayout.joists.reduce((sum, joist) => {
+        const span = joist.segments.reduce((inner, segment) => inner + Math.max(0, segment.y2 - segment.y1), 0);
+        if (span <= 0) return sum;
+        return sum + Math.round(span / spacerPitch) + 1;
+      }, 0)
+      : 0;
 
     const screwReservePct = 10;
     const screwTol = config.gap + 0.5;

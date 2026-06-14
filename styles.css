@@ -1255,6 +1255,16 @@ textarea {
   stroke-width: 14px;
 }
 
+.joist-position-label {
+  font-size: 52px;
+  font-weight: 700;
+  fill: #c94400;
+  paint-order: stroke;
+  stroke: rgba(255, 255, 255, 0.92);
+  stroke-linejoin: round;
+  stroke-width: 14px;
+}
+
 .row-coverage-label {
   font-size: 56px;
   font-weight: 800;

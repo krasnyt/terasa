@@ -6,8 +6,8 @@ import {
   joistBoardEndInset,
   parseManualText,
   serializeManualPieces,
-} from "./layout.js?v=15";
-import { svgEl } from "./render.js?v=28";
+} from "./layout.js?v=17";
+import { svgEl } from "./render.js?v=31";
 
 export function createManualController({
   els,

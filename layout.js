@@ -59,6 +59,7 @@ export function stockInventory(config) {
       label: `Xx${fallbackLength}`,
       isCustom: false,
       maxLength: fallbackLength,
+      minLength: fallbackLength,
     };
   }
 
@@ -86,16 +87,19 @@ export function stockInventory(config) {
       label: `Xx${fallbackLength}`,
       isCustom: true,
       maxLength: fallbackLength,
+      minLength: fallbackLength,
     };
   }
 
   const maxLength = Math.max(...entries.map((entry) => entry.length));
+  const minLength = Math.min(...entries.map((entry) => entry.length));
   return {
     entries,
     warnings,
     label: entries.map(formatStockEntry).join("; "),
     isCustom: true,
     maxLength,
+    minLength,
   };
 }
 
@@ -103,8 +107,19 @@ export function getMaxStockLength(config) {
   return stockInventory(config).maxLength;
 }
 
+// Návrhová délka prkna pro auto rozložení (délka celých dílů v řadě a posun spár).
+// Pokud je vyplněn seznam skladových prken, pole „Délka prkna" se ignoruje a použije
+// se nejkratší skladové prkno — tím je zaručeno, že se každý celý díl dá uříznout
+// z libovolného prkna ve skladu. Bez seznamu se použije pole „Délka prkna".
+export function getDesignBoardLength(config) {
+  const inventory = stockInventory(config);
+  if (inventory.isCustom) return inventory.minLength;
+  const declared = Math.round(Number(config.boardLength) || 0);
+  return declared > 0 ? declared : inventory.maxLength;
+}
+
 function buildRowLengths(config, patternIndex, stagger) {
-  const boardLength = getMaxStockLength(config);
+  const boardLength = getDesignBoardLength(config);
   if (config.terraceLength < config.minOffcut - 0.5) {
     return { error: `Délka terasy ${Math.round(config.terraceLength)} mm je menší než minimální odřezek ${Math.round(config.minOffcut)} mm.` };
   }
@@ -218,8 +233,7 @@ function placeRowPieces(config, row, lengths, idPrefix, patternIndex, pieces) {
 export function createAutoLayout(config) {
   const rows = boardRows(config);
   const pieces = [];
-  const inventory = stockInventory(config);
-  const boardLength = inventory.maxLength;
+  const boardLength = getDesignBoardLength(config);
 
   if (rows.length > 1 && config.patternRows < 2) {
     return {

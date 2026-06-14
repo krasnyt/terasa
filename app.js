@@ -9,9 +9,9 @@ import {
   packBoards,
   piecesForCutPlan,
   stockInventory,
-} from "./layout.js?v=15";
-import { createManualController } from "./manual.js?v=13";
-import { createRenderer } from "./render.js?v=28";
+} from "./layout.js?v=17";
+import { createManualController } from "./manual.js?v=14";
+import { createRenderer } from "./render.js?v=31";
 
 const qs = (selector) => document.querySelector(selector);
 
